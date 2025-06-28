@@ -1,0 +1,27 @@
+#controlsDisplay {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    color: white;
+    font-size: 16px;
+    font-family: Arial, sans-serif;
+    text-align: left;
+}
+
+#controlsDisplay h3 {
+    margin: 0 0 10px 0;
+}
+
+#controlsDisplay p {
+    margin: 5px 0;
+}
+
+#scoreDisplay {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: white;
+    font-size: 24px;
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+}
