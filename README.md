@@ -16,6 +16,7 @@
 - [Member 2 Amit Parann]
 
 ## Technical Details
+- Run `npm i`
 - Run the server with: `node index.js`
 - Access at http://localhost:8000 in your web browser
 
