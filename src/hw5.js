@@ -32,8 +32,8 @@ function degrees_to_radians(degrees) {
 // Global variables for basketball movement
 let basketball;
 const courtBoundaries = {
-  minX: -14,
-  maxX: 14,
+  minX: -14.5,
+  maxX: 14.5,
   minZ: -7,
   maxZ: 7
 };
@@ -82,7 +82,15 @@ const physicsConfig = {
   timeScale: 0.016,     // Time scale for physics (60 FPS)
   minArcHeight: 2.0,    // Minimum arc height for successful shots
   rimHeight: 3.15,      // Height of basketball rim
-  courtHeight: 0.1      // Height of court surface
+  courtHeight: 0.1,     // Height of court surface
+  // Enhanced collision parameters
+  groundBounce: 0.6,    // Ground bounce energy retention (60%)
+  wallBounce: 0.4,      // Wall bounce energy retention (40%)
+  rimBounce: 0.3,       // Rim bounce energy retention (30%)
+  friction: 0.85,       // Friction coefficient (15% energy loss)
+  minBounceVelocity: 0.5, // Minimum velocity to continue bouncing
+  rimRadius: 0.225,     // Basketball rim radius (from basketballHoops.js)
+  ballRadius: 0.18      // Basketball radius
 };
 
 // Basketball physics state
@@ -91,16 +99,145 @@ const ballPhysics = {
   velocity: { x: 0, y: 0, z: 0 },  // Current velocity vector
   position: { x: 0, y: 0, z: 0 },  // Current position
   restingPosition: { x: 0, y: 0, z: 0 }, // Position when ball is at rest
-  timeInFlight: 0       // How long has ball been flying
+  timeInFlight: 0,      // How long has ball been flying
+  lastCollision: null,  // Last collision type for debugging
+  bounceCount: 0        // Number of bounces for this shot
 };
 
-// Hoop positions (matching basketballHoops.js)
+// Hoop positions (adjusted to be within court boundaries)
 const hoopPositions = [
-  { x: -16, y: physicsConfig.rimHeight, z: 0, side: 'left' },
-  { x: 16, y: physicsConfig.rimHeight, z: 0, side: 'right' }
+  { x: -13, y: physicsConfig.rimHeight, z: 0, side: 'left' },
+  { x: 13, y: physicsConfig.rimHeight, z: 0, side: 'right' }
 ];
 
-// Create basketball court
+// Enhanced collision detection functions
+function checkGroundCollision() {
+  const groundY = physicsConfig.courtHeight + physicsConfig.ballRadius;
+  
+  if (ballPhysics.position.y <= groundY && ballPhysics.velocity.y < 0) {
+    // Ball hit the ground
+    ballPhysics.position.y = groundY;
+    ballPhysics.lastCollision = 'ground';
+    ballPhysics.bounceCount++;
+    
+    // Apply bounce with energy loss
+    if (Math.abs(ballPhysics.velocity.y) > physicsConfig.minBounceVelocity) {
+      ballPhysics.velocity.y = -ballPhysics.velocity.y * physicsConfig.groundBounce;
+      ballPhysics.velocity.x *= physicsConfig.friction;
+      ballPhysics.velocity.z *= physicsConfig.friction;
+      
+      console.log(`Ground bounce #${ballPhysics.bounceCount}, velocity: ${Math.abs(ballPhysics.velocity.y).toFixed(2)}`);
+      return false; // Continue bouncing
+    } else {
+      // Ball comes to rest
+      ballPhysics.isFlying = false;
+      ballPhysics.velocity = { x: 0, y: 0, z: 0 };
+      ballPhysics.bounceCount = 0;
+      console.log("Ball came to rest on ground");
+      return true; // Stop bouncing
+    }
+  }
+  return false;
+}
+
+function checkWallCollisions() {
+  let collided = false;
+  
+  // Check X boundaries (left/right walls)
+  if (ballPhysics.position.x <= courtBoundaries.minX + physicsConfig.ballRadius) {
+    ballPhysics.position.x = courtBoundaries.minX + physicsConfig.ballRadius;
+    ballPhysics.velocity.x = -ballPhysics.velocity.x * physicsConfig.wallBounce;
+    ballPhysics.velocity.y *= physicsConfig.friction;
+    ballPhysics.velocity.z *= physicsConfig.friction;
+    ballPhysics.lastCollision = 'wall-left';
+    ballPhysics.bounceCount++;
+    collided = true;
+    console.log(`Left wall bounce #${ballPhysics.bounceCount}`);
+  } else if (ballPhysics.position.x >= courtBoundaries.maxX - physicsConfig.ballRadius) {
+    ballPhysics.position.x = courtBoundaries.maxX - physicsConfig.ballRadius;
+    ballPhysics.velocity.x = -ballPhysics.velocity.x * physicsConfig.wallBounce;
+    ballPhysics.velocity.y *= physicsConfig.friction;
+    ballPhysics.velocity.z *= physicsConfig.friction;
+    ballPhysics.lastCollision = 'wall-right';
+    ballPhysics.bounceCount++;
+    collided = true;
+    console.log(`Right wall bounce #${ballPhysics.bounceCount}`);
+  }
+  
+  // Check Z boundaries (front/back walls)
+  if (ballPhysics.position.z <= courtBoundaries.minZ + physicsConfig.ballRadius) {
+    ballPhysics.position.z = courtBoundaries.minZ + physicsConfig.ballRadius;
+    ballPhysics.velocity.z = -ballPhysics.velocity.z * physicsConfig.wallBounce;
+    ballPhysics.velocity.x *= physicsConfig.friction;
+    ballPhysics.velocity.y *= physicsConfig.friction;
+    ballPhysics.lastCollision = 'wall-front';
+    ballPhysics.bounceCount++;
+    collided = true;
+    console.log(`Front wall bounce #${ballPhysics.bounceCount}`);
+  } else if (ballPhysics.position.z >= courtBoundaries.maxZ - physicsConfig.ballRadius) {
+    ballPhysics.position.z = courtBoundaries.maxZ - physicsConfig.ballRadius;
+    ballPhysics.velocity.z = -ballPhysics.velocity.z * physicsConfig.wallBounce;
+    ballPhysics.velocity.x *= physicsConfig.friction;
+    ballPhysics.velocity.y *= physicsConfig.friction;
+    ballPhysics.lastCollision = 'wall-back';
+    ballPhysics.bounceCount++;
+    collided = true;
+    console.log(`Back wall bounce #${ballPhysics.bounceCount}`);
+  }
+  
+  return collided;
+}
+
+function checkRimCollisions() {
+  hoopPositions.forEach(hoop => {
+    // Calculate distance from ball to rim center
+    const dx = ballPhysics.position.x - hoop.x;
+    const dz = ballPhysics.position.z - hoop.z;
+    const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+    
+    // Check if ball is near rim height and within rim radius
+    const rimTop = hoop.y + 0.05; // Slightly above rim
+    const rimBottom = hoop.y - 0.1; // Slightly below rim
+    
+    if (ballPhysics.position.y <= rimTop && 
+        ballPhysics.position.y >= rimBottom &&
+        horizontalDistance <= physicsConfig.rimRadius + physicsConfig.ballRadius) {
+      
+      // Check if this is a successful shot (ball going downward through rim)
+      if (horizontalDistance <= physicsConfig.rimRadius * 0.8 && 
+          ballPhysics.velocity.y < 0) {
+        // SCORE! Ball went through the hoop
+        ballPhysics.lastCollision = `score-${hoop.side}`;
+        console.log(`🏀 SCORE! Shot made on ${hoop.side} hoop!`);
+        
+        // Let ball continue through (don't bounce off rim)
+        return;
+      }
+      
+      // Ball hit the rim - bounce off
+      if (horizontalDistance > physicsConfig.rimRadius * 0.8) {
+        // Calculate rim collision normal
+        const normalX = dx / horizontalDistance;
+        const normalZ = dz / horizontalDistance;
+        
+        // Reflect velocity off rim
+        const dotProduct = ballPhysics.velocity.x * normalX + ballPhysics.velocity.z * normalZ;
+        ballPhysics.velocity.x -= 2 * dotProduct * normalX * physicsConfig.rimBounce;
+        ballPhysics.velocity.z -= 2 * dotProduct * normalZ * physicsConfig.rimBounce;
+        ballPhysics.velocity.y *= physicsConfig.rimBounce;
+        
+        // Push ball away from rim
+        const pushDistance = (physicsConfig.rimRadius + physicsConfig.ballRadius) - horizontalDistance;
+        ballPhysics.position.x += normalX * pushDistance;
+        ballPhysics.position.z += normalZ * pushDistance;
+        
+        ballPhysics.lastCollision = `rim-${hoop.side}`;
+        ballPhysics.bounceCount++;
+        console.log(`Rim collision on ${hoop.side} hoop, bounce #${ballPhysics.bounceCount}`);
+      }
+    }
+  });
+}
 function createBasketballCourt() {
   // Court floor - just a simple brown surface
   const courtGeometry = new THREE.BoxGeometry(30, 0.2, 15);
@@ -207,6 +344,8 @@ function shootBasketball() {
     z: basketball.position.z
   };
   ballPhysics.timeInFlight = 0;
+  ballPhysics.bounceCount = 0;  // Reset bounce counter
+  ballPhysics.lastCollision = null;  // Reset collision tracker
   
   // Store resting position for potential reset
   ballPhysics.restingPosition = {
@@ -215,8 +354,8 @@ function shootBasketball() {
     z: basketball.position.z
   };
   
-  // Show shooting feedback (you can enhance this later)
-  console.log(`Shot fired with ${shotPowerState.displayValue}% power toward ${targetHoop.side} hoop!`);
+  // Show shooting feedback
+  console.log(`🏀 Shot fired with ${shotPowerState.displayValue}% power toward ${targetHoop.side} hoop!`);
   console.log(`Distance: ${distance.toFixed(2)} units, Velocity: ${shotVelocity.toFixed(2)}`);
 }
 
@@ -235,36 +374,42 @@ function updateBasketballPhysics() {
   ballPhysics.position.y += ballPhysics.velocity.y * physicsConfig.timeScale;
   ballPhysics.position.z += ballPhysics.velocity.z * physicsConfig.timeScale;
   
-  // Check for ground collision
-  const groundY = physicsConfig.courtHeight + movementConfig.ballRadius;
-  if (ballPhysics.position.y <= groundY) {
-    // Ball hit the ground
-    ballPhysics.position.y = groundY;
-    
-    // Simple bounce with energy loss
-    if (Math.abs(ballPhysics.velocity.y) > 0.5) {
-      ballPhysics.velocity.y = -ballPhysics.velocity.y * 0.6; // 60% energy retained
-      ballPhysics.velocity.x *= 0.8; // Friction
-      ballPhysics.velocity.z *= 0.8; // Friction
-    } else {
-      // Ball comes to rest
-      ballPhysics.isFlying = false;
-      ballPhysics.velocity = { x: 0, y: 0, z: 0 };
-      console.log("Ball came to rest");
-    }
+  // Check for rim collisions first (scoring takes priority)
+  checkRimCollisions();
+  
+  // Check for wall collisions
+  checkWallCollisions();
+  
+  // Check for ground collision (this might stop the ball)
+  const ballStopped = checkGroundCollision();
+  
+  // Check if ball has very low energy and should stop
+  const totalVelocity = Math.sqrt(
+    ballPhysics.velocity.x * ballPhysics.velocity.x +
+    ballPhysics.velocity.y * ballPhysics.velocity.y +
+    ballPhysics.velocity.z * ballPhysics.velocity.z
+  );
+  
+  if (totalVelocity < physicsConfig.minBounceVelocity && 
+      ballPhysics.position.y <= physicsConfig.courtHeight + physicsConfig.ballRadius + 0.01) {
+    // Ball has very low energy and is near the ground - stop it
+    ballPhysics.isFlying = false;
+    ballPhysics.velocity = { x: 0, y: 0, z: 0 };
+    ballPhysics.position.y = physicsConfig.courtHeight + physicsConfig.ballRadius;
+    ballPhysics.bounceCount = 0;
+    console.log("Ball stopped due to low energy");
   }
   
-  // Apply boundary constraints even during flight
-  if (ballPhysics.position.x < courtBoundaries.minX || 
-      ballPhysics.position.x > courtBoundaries.maxX ||
-      ballPhysics.position.z < courtBoundaries.minZ || 
-      ballPhysics.position.z > courtBoundaries.maxZ) {
-    
-    // Ball went out of bounds - stop flight
+  // Emergency boundary check - reset if ball goes way out of bounds
+  if (Math.abs(ballPhysics.position.x) > courtBoundaries.maxX + 5 ||
+      Math.abs(ballPhysics.position.z) > courtBoundaries.maxZ + 5 ||
+      ballPhysics.position.y < -2) {
+    // Ball went way out of bounds - reset
     ballPhysics.isFlying = false;
     ballPhysics.position = { ...ballPhysics.restingPosition };
     ballPhysics.velocity = { x: 0, y: 0, z: 0 };
-    console.log("Ball went out of bounds - reset to starting position");
+    ballPhysics.bounceCount = 0;
+    console.log("Ball reset due to going out of bounds");
   }
   
   // Update basketball visual position

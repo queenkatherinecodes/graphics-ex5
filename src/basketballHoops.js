@@ -3,8 +3,9 @@ export function createBasketballHoops(scene) {
     const courtLevel = 0.1;
     const actualRimHeight = courtLevel + rimHeight;
     
-    const leftHoopX = -16;
-    const rightHoopX = 16;
+    // Adjusted hoop positions to be within court boundaries
+    const leftHoopX = -14;   // Changed from -16 to -13
+    const rightHoopX = 14;   // Changed from 16 to 13
     
     const leftHoop = createSingleHoop(scene, leftHoopX, actualRimHeight, 1);
     
