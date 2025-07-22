@@ -199,6 +199,34 @@
     font-family: monospace;
 }
 
+/* Basketball state indicators */
+.ball-flying {
+    opacity: 0.8;
+}
+
+.controls-disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Physics debug information (optional) */
+.physics-debug {
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 12px;
+    border-radius: 5px;
+    display: none; /* Hidden by default */
+}
+
+.physics-debug.active {
+    display: block;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     #controlsDisplay {

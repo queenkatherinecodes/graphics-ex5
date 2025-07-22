@@ -76,6 +76,30 @@ const shotPowerState = {
   displayValue: shotPowerConfig.default
 };
 
+// Physics configuration
+const physicsConfig = {
+  gravity: -9.8,        // Gravity acceleration (m/s²)
+  timeScale: 0.016,     // Time scale for physics (60 FPS)
+  minArcHeight: 2.0,    // Minimum arc height for successful shots
+  rimHeight: 3.15,      // Height of basketball rim
+  courtHeight: 0.1      // Height of court surface
+};
+
+// Basketball physics state
+const ballPhysics = {
+  isFlying: false,      // Is the ball currently in flight?
+  velocity: { x: 0, y: 0, z: 0 },  // Current velocity vector
+  position: { x: 0, y: 0, z: 0 },  // Current position
+  restingPosition: { x: 0, y: 0, z: 0 }, // Position when ball is at rest
+  timeInFlight: 0       // How long has ball been flying
+};
+
+// Hoop positions (matching basketballHoops.js)
+const hoopPositions = [
+  { x: -16, y: physicsConfig.rimHeight, z: 0, side: 'left' },
+  { x: 16, y: physicsConfig.rimHeight, z: 0, side: 'right' }
+];
+
 // Create basketball court
 function createBasketballCourt() {
   // Court floor - just a simple brown surface
@@ -95,71 +119,223 @@ function createBasketballCourt() {
   basketball = createBasketball(scene);
 }
 
-// Input handling for movement controls
-function handleKeyDown(e) {
-  // Existing orbit camera toggle
-  if (e.key === "o" || e.key === "O") {
-    isOrbitEnabled = !isOrbitEnabled;
-    return;
-  }
+// Find the nearest hoop to the basketball
+function findNearestHoop() {
+  const ballPos = basketball.position;
+  let nearestHoop = hoopPositions[0];
+  let minDistance = Infinity;
   
-  // Movement controls
-  switch(e.code) {
-    case 'ArrowLeft':
-      e.preventDefault();
-      movementState.keys.left = true;
-      break;
-    case 'ArrowRight':
-      e.preventDefault();
-      movementState.keys.right = true;
-      break;
-    case 'ArrowUp':
-      e.preventDefault();
-      movementState.keys.up = true;
-      break;
-    case 'ArrowDown':
-      e.preventDefault();
-      movementState.keys.down = true;
-      break;
-    // Shot power controls
-    case 'KeyW':
-      e.preventDefault();
-      movementState.keys.powerUp = true;
-      break;
-    case 'KeyS':
-      e.preventDefault();
-      movementState.keys.powerDown = true;
-      break;
-  }
+  hoopPositions.forEach(hoop => {
+    const distance = Math.sqrt(
+      Math.pow(ballPos.x - hoop.x, 2) + 
+      Math.pow(ballPos.z - hoop.z, 2)
+    );
+    
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestHoop = hoop;
+    }
+  });
+  
+  return { hoop: nearestHoop, distance: minDistance };
 }
 
-function handleKeyUp(e) {
-  switch(e.code) {
-    case 'ArrowLeft':
-      e.preventDefault();
-      movementState.keys.left = false;
-      break;
-    case 'ArrowRight':
-      e.preventDefault();
-      movementState.keys.right = false;
-      break;
-    case 'ArrowUp':
-      e.preventDefault();
-      movementState.keys.up = false;
-      break;
-    case 'ArrowDown':
-      e.preventDefault();
-      movementState.keys.down = false;
-      break;
-    // Shot power controls
-    case 'KeyW':
-      e.preventDefault();
-      movementState.keys.powerUp = false;
-      break;
-    case 'KeyS':
-      e.preventDefault();
-      movementState.keys.powerDown = false;
-      break;
+// Calculate trajectory to reach target hoop
+function calculateTrajectory(targetHoop, shotVelocity) {
+  const ballPos = basketball.position;
+  
+  // Distance to target
+  const dx = targetHoop.x - ballPos.x;
+  const dz = targetHoop.z - ballPos.z;
+  const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+  
+  // Height difference
+  const dy = targetHoop.y - ballPos.y;
+  
+  // Calculate optimal launch angle for given velocity
+  const g = Math.abs(physicsConfig.gravity);
+  const v = shotVelocity;
+  
+  // Use physics formula to find launch angle
+  // For projectile motion: range = v²sin(2θ)/g
+  // We'll use a fixed optimal angle and adjust velocity accordingly
+  const optimalAngle = Math.PI / 4; // 45 degrees for maximum range
+  const launchAngle = Math.atan2(dy + physicsConfig.minArcHeight, horizontalDistance);
+  
+  // Calculate velocity components
+  const totalTime = horizontalDistance / (v * Math.cos(launchAngle));
+  const vx = dx / totalTime;
+  const vz = dz / totalTime;
+  const vy = (dy - 0.5 * physicsConfig.gravity * totalTime * totalTime) / totalTime;
+  
+  return {
+    velocity: { x: vx, y: vy, z: vz },
+    angle: launchAngle,
+    time: totalTime,
+    distance: horizontalDistance
+  };
+}
+
+// Get shot velocity based on current power
+function getShotVelocity() {
+  const powerRatio = shotPowerState.current / 100;
+  const minVelocity = 8;  // Minimum shot velocity
+  const maxVelocity = 25; // Maximum shot velocity
+  
+  return minVelocity + (maxVelocity - minVelocity) * powerRatio;
+}
+
+// Shoot the basketball
+function shootBasketball() {
+  if (ballPhysics.isFlying || !basketball) return;
+  
+  // Get current shot velocity based on power
+  const shotVelocity = getShotVelocity();
+  
+  // Find nearest hoop
+  const { hoop: targetHoop, distance } = findNearestHoop();
+  
+  // Calculate trajectory
+  const trajectory = calculateTrajectory(targetHoop, shotVelocity);
+  
+  // Set physics state
+  ballPhysics.isFlying = true;
+  ballPhysics.velocity = trajectory.velocity;
+  ballPhysics.position = {
+    x: basketball.position.x,
+    y: basketball.position.y,
+    z: basketball.position.z
+  };
+  ballPhysics.timeInFlight = 0;
+  
+  // Store resting position for potential reset
+  ballPhysics.restingPosition = {
+    x: basketball.position.x,
+    y: movementConfig.courtSurfaceHeight + movementConfig.ballRadius,
+    z: basketball.position.z
+  };
+  
+  // Show shooting feedback (you can enhance this later)
+  console.log(`Shot fired with ${shotPowerState.displayValue}% power toward ${targetHoop.side} hoop!`);
+  console.log(`Distance: ${distance.toFixed(2)} units, Velocity: ${shotVelocity.toFixed(2)}`);
+}
+
+// Update basketball physics when in flight
+function updateBasketballPhysics() {
+  if (!ballPhysics.isFlying || !basketball) return;
+  
+  // Update time in flight
+  ballPhysics.timeInFlight += physicsConfig.timeScale;
+  
+  // Apply gravity to vertical velocity
+  ballPhysics.velocity.y += physicsConfig.gravity * physicsConfig.timeScale;
+  
+  // Update position based on velocity
+  ballPhysics.position.x += ballPhysics.velocity.x * physicsConfig.timeScale;
+  ballPhysics.position.y += ballPhysics.velocity.y * physicsConfig.timeScale;
+  ballPhysics.position.z += ballPhysics.velocity.z * physicsConfig.timeScale;
+  
+  // Check for ground collision
+  const groundY = physicsConfig.courtHeight + movementConfig.ballRadius;
+  if (ballPhysics.position.y <= groundY) {
+    // Ball hit the ground
+    ballPhysics.position.y = groundY;
+    
+    // Simple bounce with energy loss
+    if (Math.abs(ballPhysics.velocity.y) > 0.5) {
+      ballPhysics.velocity.y = -ballPhysics.velocity.y * 0.6; // 60% energy retained
+      ballPhysics.velocity.x *= 0.8; // Friction
+      ballPhysics.velocity.z *= 0.8; // Friction
+    } else {
+      // Ball comes to rest
+      ballPhysics.isFlying = false;
+      ballPhysics.velocity = { x: 0, y: 0, z: 0 };
+      console.log("Ball came to rest");
+    }
+  }
+  
+  // Apply boundary constraints even during flight
+  if (ballPhysics.position.x < courtBoundaries.minX || 
+      ballPhysics.position.x > courtBoundaries.maxX ||
+      ballPhysics.position.z < courtBoundaries.minZ || 
+      ballPhysics.position.z > courtBoundaries.maxZ) {
+    
+    // Ball went out of bounds - stop flight
+    ballPhysics.isFlying = false;
+    ballPhysics.position = { ...ballPhysics.restingPosition };
+    ballPhysics.velocity = { x: 0, y: 0, z: 0 };
+    console.log("Ball went out of bounds - reset to starting position");
+  }
+  
+  // Update basketball visual position
+  basketball.position.set(
+    ballPhysics.position.x,
+    ballPhysics.position.y,
+    ballPhysics.position.z
+  );
+}
+
+// Update basketball movement based on input (only when not flying)
+function updateBasketballMovement() {
+  if (!basketball || ballPhysics.isFlying) return;
+  
+  // Calculate target velocity based on pressed keys
+  movementState.targetVelocity.x = 0;
+  movementState.targetVelocity.z = 0;
+  
+  if (movementState.keys.left) {
+    movementState.targetVelocity.x -= movementConfig.speed;
+  }
+  if (movementState.keys.right) {
+    movementState.targetVelocity.x += movementConfig.speed;
+  }
+  if (movementState.keys.up) {
+    movementState.targetVelocity.z -= movementConfig.speed;
+  }
+  if (movementState.keys.down) {
+    movementState.targetVelocity.z += movementConfig.speed;
+  }
+  
+  // Apply smoothing to current velocity
+  movementState.velocity.x = 
+    movementState.velocity.x * movementConfig.smoothing + 
+    movementState.targetVelocity.x * (1 - movementConfig.smoothing);
+  
+  movementState.velocity.z = 
+    movementState.velocity.z * movementConfig.smoothing + 
+    movementState.targetVelocity.z * (1 - movementConfig.smoothing);
+  
+  // Get current position
+  const currentPos = basketball.position;
+  
+  // Calculate new position
+  let newX = currentPos.x + movementState.velocity.x;
+  let newZ = currentPos.z + movementState.velocity.z;
+  
+  // Apply boundary constraints
+  newX = Math.max(courtBoundaries.minX, Math.min(courtBoundaries.maxX, newX));
+  newZ = Math.max(courtBoundaries.minZ, Math.min(courtBoundaries.maxZ, newZ));
+  
+  // Update basketball position
+  basketball.position.set(
+    newX,
+    movementConfig.courtSurfaceHeight + movementConfig.ballRadius,
+    newZ
+  );
+  
+  // Update physics position to match (when at rest)
+  ballPhysics.position = {
+    x: newX,
+    y: movementConfig.courtSurfaceHeight + movementConfig.ballRadius,
+    z: newZ
+  };
+  
+  // Stop velocity if we hit a boundary
+  if (newX <= courtBoundaries.minX || newX >= courtBoundaries.maxX) {
+    movementState.velocity.x = 0;
+  }
+  if (newZ <= courtBoundaries.minZ || newZ >= courtBoundaries.maxZ) {
+    movementState.velocity.z = 0;
   }
 }
 
@@ -221,67 +397,83 @@ function updatePowerIndicatorUI() {
   }
 }
 
-// Get shot velocity based on current power (for future use)
-function getShotVelocity() {
-  const powerRatio = shotPowerState.current / 100;
-  const minVelocity = 8;  // Minimum shot velocity
-  const maxVelocity = 25; // Maximum shot velocity
+// Input handling for movement controls
+function handleKeyDown(e) {
+  // Existing orbit camera toggle
+  if (e.key === "o" || e.key === "O") {
+    isOrbitEnabled = !isOrbitEnabled;
+    return;
+  }
   
-  return minVelocity + (maxVelocity - minVelocity) * powerRatio;
+  // Shooting control
+  if (e.code === 'Space') {
+    e.preventDefault();
+    shootBasketball();
+    return;
+  }
+  
+  // Movement controls (only when ball is not flying)
+  if (!ballPhysics.isFlying) {
+    switch(e.code) {
+      case 'ArrowLeft':
+        e.preventDefault();
+        movementState.keys.left = true;
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        movementState.keys.right = true;
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        movementState.keys.up = true;
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        movementState.keys.down = true;
+        break;
+    }
+  }
+  
+  // Shot power controls (always available)
+  switch(e.code) {
+    case 'KeyW':
+      e.preventDefault();
+      movementState.keys.powerUp = true;
+      break;
+    case 'KeyS':
+      e.preventDefault();
+      movementState.keys.powerDown = true;
+      break;
+  }
 }
-function updateBasketballMovement() {
-  if (!basketball) return;
-  
-  // Calculate target velocity based on pressed keys
-  movementState.targetVelocity.x = 0;
-  movementState.targetVelocity.z = 0;
-  
-  if (movementState.keys.left) {
-    movementState.targetVelocity.x -= movementConfig.speed;
-  }
-  if (movementState.keys.right) {
-    movementState.targetVelocity.x += movementConfig.speed;
-  }
-  if (movementState.keys.up) {
-    movementState.targetVelocity.z -= movementConfig.speed;
-  }
-  if (movementState.keys.down) {
-    movementState.targetVelocity.z += movementConfig.speed;
-  }
-  
-  // Apply smoothing to current velocity
-  movementState.velocity.x = 
-    movementState.velocity.x * movementConfig.smoothing + 
-    movementState.targetVelocity.x * (1 - movementConfig.smoothing);
-  
-  movementState.velocity.z = 
-    movementState.velocity.z * movementConfig.smoothing + 
-    movementState.targetVelocity.z * (1 - movementConfig.smoothing);
-  
-  // Get current position
-  const currentPos = basketball.position;
-  
-  // Calculate new position
-  let newX = currentPos.x + movementState.velocity.x;
-  let newZ = currentPos.z + movementState.velocity.z;
-  
-  // Apply boundary constraints
-  newX = Math.max(courtBoundaries.minX, Math.min(courtBoundaries.maxX, newX));
-  newZ = Math.max(courtBoundaries.minZ, Math.min(courtBoundaries.maxZ, newZ));
-  
-  // Update basketball position
-  basketball.position.set(
-    newX,
-    movementConfig.courtSurfaceHeight + movementConfig.ballRadius,
-    newZ
-  );
-  
-  // Stop velocity if we hit a boundary
-  if (newX <= courtBoundaries.minX || newX >= courtBoundaries.maxX) {
-    movementState.velocity.x = 0;
-  }
-  if (newZ <= courtBoundaries.minZ || newZ >= courtBoundaries.maxZ) {
-    movementState.velocity.z = 0;
+
+function handleKeyUp(e) {
+  switch(e.code) {
+    case 'ArrowLeft':
+      e.preventDefault();
+      movementState.keys.left = false;
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      movementState.keys.right = false;
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      movementState.keys.up = false;
+      break;
+    case 'ArrowDown':
+      e.preventDefault();
+      movementState.keys.down = false;
+      break;
+    // Shot power controls
+    case 'KeyW':
+      e.preventDefault();
+      movementState.keys.powerUp = false;
+      break;
+    case 'KeyS':
+      e.preventDefault();
+      movementState.keys.powerDown = false;
+      break;
   }
 }
 
@@ -312,7 +504,10 @@ window.addEventListener('resize', function() {
 function animate() {
   requestAnimationFrame(animate);
   
-  // Update basketball movement
+  // Update basketball physics (flight simulation)
+  updateBasketballPhysics();
+  
+  // Update basketball movement (ground movement)
   updateBasketballMovement();
   
   // Update shot power system
