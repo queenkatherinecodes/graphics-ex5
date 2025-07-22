@@ -104,13 +104,98 @@ const ballPhysics = {
   bounceCount: 0        // Number of bounces for this shot
 };
 
-// Hoop positions (adjusted to be within court boundaries)
+// Basketball rotation state
+const ballRotation = {
+  rotation: { x: 0, y: 0, z: 0 },  // Current rotation angles (radians)
+  angularVelocity: { x: 0, y: 0, z: 0 }, // Rotation speed per axis
+  rotationScale: 2.5,   // Multiplier for rotation speed
+  smoothing: 0.9,       // Rotation smoothing factor
+  minRotationSpeed: 0.1 // Minimum speed to show rotation
+};
+
+// Hoop positions (matching your updated basketballHoops.js)
 const hoopPositions = [
-  { x: -13, y: physicsConfig.rimHeight, z: 0, side: 'left' },
-  { x: 13, y: physicsConfig.rimHeight, z: 0, side: 'right' }
+  { x: -14, y: physicsConfig.rimHeight, z: 0, side: 'left' },
+  { x: 14, y: physicsConfig.rimHeight, z: 0, side: 'right' }
 ];
 
-// Enhanced collision detection functions
+// Calculate ball rotation based on velocity
+function calculateBallRotation(velocity) {
+  // Calculate rotation based on ball movement
+  // For a rolling ball: angular velocity = linear velocity / radius
+  const ballRadius = physicsConfig.ballRadius;
+  
+  // Calculate angular velocity for each axis
+  const angularVelocityX = -velocity.z / ballRadius; // Rolling forward/backward
+  const angularVelocityY = 0; // No spinning around Y-axis for now
+  const angularVelocityZ = velocity.x / ballRadius;  // Rolling left/right
+  
+  return {
+    x: angularVelocityX * ballRotation.rotationScale,
+    y: angularVelocityY * ballRotation.rotationScale,
+    z: angularVelocityZ * ballRotation.rotationScale
+  };
+}
+
+// Update ball rotation based on current velocity
+function updateBallRotation() {
+  if (!basketball) return;
+  
+  // Get current velocity (either from physics or movement)
+  let currentVelocity;
+  if (ballPhysics.isFlying) {
+    // Use physics velocity during flight
+    currentVelocity = ballPhysics.velocity;
+  } else {
+    // Use movement velocity when on ground
+    currentVelocity = {
+      x: movementState.velocity.x / physicsConfig.timeScale,
+      y: 0,
+      z: movementState.velocity.z / physicsConfig.timeScale
+    };
+  }
+  
+  // Calculate target angular velocity
+  const targetAngularVelocity = calculateBallRotation(currentVelocity);
+  
+  // Apply smoothing to angular velocity
+  ballRotation.angularVelocity.x = 
+    ballRotation.angularVelocity.x * ballRotation.smoothing + 
+    targetAngularVelocity.x * (1 - ballRotation.smoothing);
+  
+  ballRotation.angularVelocity.y = 
+    ballRotation.angularVelocity.y * ballRotation.smoothing + 
+    targetAngularVelocity.y * (1 - ballRotation.smoothing);
+  
+  ballRotation.angularVelocity.z = 
+    ballRotation.angularVelocity.z * ballRotation.smoothing + 
+    targetAngularVelocity.z * (1 - ballRotation.smoothing);
+  
+  // Update rotation angles
+  ballRotation.rotation.x += ballRotation.angularVelocity.x * physicsConfig.timeScale;
+  ballRotation.rotation.y += ballRotation.angularVelocity.y * physicsConfig.timeScale;
+  ballRotation.rotation.z += ballRotation.angularVelocity.z * physicsConfig.timeScale;
+  
+  // Apply rotation to basketball mesh
+  const basketballMesh = basketball.children[0]; // Get the actual sphere mesh
+  if (basketballMesh) {
+    basketballMesh.rotation.x = ballRotation.rotation.x;
+    basketballMesh.rotation.y = ballRotation.rotation.y;
+    basketballMesh.rotation.z = ballRotation.rotation.z;
+  }
+  
+  // Debug rotation (optional - can be removed)
+  const rotationSpeed = Math.sqrt(
+    ballRotation.angularVelocity.x * ballRotation.angularVelocity.x +
+    ballRotation.angularVelocity.y * ballRotation.angularVelocity.y +
+    ballRotation.angularVelocity.z * ballRotation.angularVelocity.z
+  );
+  
+  // Only log significant rotations to avoid console spam
+  if (rotationSpeed > ballRotation.minRotationSpeed && Math.random() < 0.01) {
+    console.log(`Ball rotation speed: ${rotationSpeed.toFixed(2)} rad/s`);
+  }
+}
 function checkGroundCollision() {
   const groundY = physicsConfig.courtHeight + physicsConfig.ballRadius;
   
@@ -654,6 +739,9 @@ function animate() {
   
   // Update basketball movement (ground movement)
   updateBasketballMovement();
+  
+  // Update basketball rotation (both flight and ground)
+  updateBallRotation();
   
   // Update shot power system
   updateShotPower();
