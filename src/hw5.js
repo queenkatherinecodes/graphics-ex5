@@ -46,6 +46,15 @@ const movementConfig = {
   ballRadius: 0.18
 };
 
+// Shot power configuration
+const shotPowerConfig = {
+  min: 0,               // Minimum power (0%)
+  max: 100,             // Maximum power (100%)
+  default: 50,          // Default starting power (50%)
+  step: 2,              // Power adjustment per key press
+  smoothing: 0.9        // Power indicator smoothing
+};
+
 // Movement state
 const movementState = {
   velocity: { x: 0, z: 0 },
@@ -54,8 +63,17 @@ const movementState = {
     left: false,
     right: false,
     up: false,
-    down: false
+    down: false,
+    powerUp: false,
+    powerDown: false
   }
+};
+
+// Shot power state
+const shotPowerState = {
+  current: shotPowerConfig.default,
+  target: shotPowerConfig.default,
+  displayValue: shotPowerConfig.default
 };
 
 // Create basketball court
@@ -103,6 +121,15 @@ function handleKeyDown(e) {
       e.preventDefault();
       movementState.keys.down = true;
       break;
+    // Shot power controls
+    case 'KeyW':
+      e.preventDefault();
+      movementState.keys.powerUp = true;
+      break;
+    case 'KeyS':
+      e.preventDefault();
+      movementState.keys.powerDown = true;
+      break;
   }
 }
 
@@ -124,10 +151,84 @@ function handleKeyUp(e) {
       e.preventDefault();
       movementState.keys.down = false;
       break;
+    // Shot power controls
+    case 'KeyW':
+      e.preventDefault();
+      movementState.keys.powerUp = false;
+      break;
+    case 'KeyS':
+      e.preventDefault();
+      movementState.keys.powerDown = false;
+      break;
   }
 }
 
-// Update basketball movement based on input
+// Update shot power based on input
+function updateShotPower() {
+  // Adjust target power based on key presses
+  if (movementState.keys.powerUp) {
+    shotPowerState.target = Math.min(
+      shotPowerConfig.max, 
+      shotPowerState.target + shotPowerConfig.step
+    );
+  }
+  if (movementState.keys.powerDown) {
+    shotPowerState.target = Math.max(
+      shotPowerConfig.min, 
+      shotPowerState.target - shotPowerConfig.step
+    );
+  }
+  
+  // Apply smoothing to current power
+  shotPowerState.current = 
+    shotPowerState.current * shotPowerConfig.smoothing + 
+    shotPowerState.target * (1 - shotPowerConfig.smoothing);
+  
+  // Update display value (rounded for UI)
+  shotPowerState.displayValue = Math.round(shotPowerState.current);
+  
+  // Update UI elements
+  updatePowerIndicatorUI();
+}
+
+// Update power indicator UI elements
+function updatePowerIndicatorUI() {
+  const powerFill = document.getElementById('powerFill');
+  const powerValue = document.getElementById('powerValue');
+  
+  if (powerFill) {
+    powerFill.style.width = shotPowerState.displayValue + '%';
+  }
+  
+  if (powerValue) {
+    powerValue.textContent = shotPowerState.displayValue;
+  }
+  
+  // Add visual feedback based on power level
+  const powerIndicator = document.getElementById('powerIndicator');
+  if (powerIndicator) {
+    // Remove existing power-level classes
+    powerIndicator.classList.remove('power-low', 'power-medium', 'power-high');
+    
+    // Add appropriate class based on power level
+    if (shotPowerState.displayValue < 33) {
+      powerIndicator.classList.add('power-low');
+    } else if (shotPowerState.displayValue < 67) {
+      powerIndicator.classList.add('power-medium');
+    } else {
+      powerIndicator.classList.add('power-high');
+    }
+  }
+}
+
+// Get shot velocity based on current power (for future use)
+function getShotVelocity() {
+  const powerRatio = shotPowerState.current / 100;
+  const minVelocity = 8;  // Minimum shot velocity
+  const maxVelocity = 25; // Maximum shot velocity
+  
+  return minVelocity + (maxVelocity - minVelocity) * powerRatio;
+}
 function updateBasketballMovement() {
   if (!basketball) return;
   
@@ -213,6 +314,9 @@ function animate() {
   
   // Update basketball movement
   updateBasketballMovement();
+  
+  // Update shot power system
+  updateShotPower();
   
   // Update controls
   controls.enabled = isOrbitEnabled;
