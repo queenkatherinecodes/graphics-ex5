@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset="utf-8">
-		<title>HW6 - Interactive Basketball Game</title>
+		<title>HW6 - Interactive Basketball</title>
 		<link rel="stylesheet" href="src/ui.css">
 		<style>
 			body { margin: 0; }
@@ -10,52 +10,80 @@
 		<script src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'></script>
 	</head>
 	<body>
-		<!-- Score Display Container -->
+		<!-- Enhanced Score Display Container -->
 		<div id="scoreDisplay">
-			<div>Score: <span id="currentScore">0</span></div>
-			<div>Shots: <span id="shotAttempts">0</span></div>
-			<div>Made: <span id="shotsMade">0</span></div>
-			<div>Accuracy: <span id="accuracy">0%</span></div>
+			<div class="score-title">BASKETBALL SHOOTING</div>
+			<div class="score-item">
+				<span class="score-label">SCORE:</span>
+				<span id="currentScore" class="score-value">0</span>
+			</div>
+			<div class="score-item">
+				<span class="score-label">SHOTS MADE:</span>
+				<span id="shotsMade" class="score-value">0</span>
+			</div>
+			<div class="score-item">
+				<span class="score-label">ATTEMPTS:</span>
+				<span id="shotAttempts" class="score-value">0</span>
+			</div>
+			<div class="score-item">
+				<span class="score-label">ACCURACY:</span>
+				<span id="accuracy" class="score-value">0%</span>
+			</div>
 		</div>
-		
-		<!-- Game Status Messages -->
-		<div id="gameStatus"></div>
-		
-		<!-- Controls Instructions Container -->
+
+		<!-- Shot Power Indicator -->
+		<div id="powerDisplay">
+			<div class="power-title">SHOT POWER</div>
+			<div class="power-bar-container">
+				<div id="powerBar" class="power-bar"></div>
+			</div>
+			<div id="powerValue" class="power-value">50%</div>
+		</div>
+
+		<!-- Enhanced Controls Instructions Container -->
 		<div id="controlsDisplay">
-			<h3>Controls:</h3>
-			<div class="control-section">
-				<h4>Movement:</h4>
-				<p>← → ↑ ↓ - Move basketball</p>
+			<div class="controls-title">CONTROLS</div>
+			<div class="controls-section">
+				<div class="control-category">Movement:</div>
+				<div class="control-item">
+					<span class="control-key">↑↓←→</span>
+					<span class="control-desc">Move Basketball</span>
+				</div>
 			</div>
-			<div class="control-section">
-				<h4>Shot Power:</h4>
-				<p><span class="control-key">W</span> - Increase power</p>
-				<p><span class="control-key">S</span> - Decrease power</p>
+			<div class="controls-section">
+				<div class="control-category">Shooting:</div>
+				<div class="control-item">
+					<span class="control-key">W/S</span>
+					<span class="control-desc">Adjust Power</span>
+				</div>
+				<div class="control-item">
+					<span class="control-key">SPACE</span>
+					<span class="control-desc">Shoot Ball</span>
+				</div>
 			</div>
-			<div class="control-section">
-				<h4>Shooting:</h4>
-				<p><span class="control-key">SPACE</span> - Shoot basketball</p>
-			</div>
-			<div class="control-section">
-				<h4>Camera:</h4>
-				<p>O - Toggle orbit camera</p>
-			</div>
-			<div class="control-section">
-				<h4>Coming Soon:</h4>
-				<p>R - Reset position</p>
+			<div class="controls-section">
+				<div class="control-category">Other:</div>
+				<div class="control-item">
+					<span class="control-key">R</span>
+					<span class="control-desc">Reset Ball</span>
+				</div>
+				<div class="control-item">
+					<span class="control-key">O</span>
+					<span class="control-desc">Toggle Camera</span>
+				</div>
 			</div>
 		</div>
-		
-		<!-- Shot Power Indicator (for future phases) -->
-		<div id="powerIndicator">
-			<div class="power-label">Shot Power</div>
-			<div class="power-bar">
-				<div id="powerFill" class="power-fill"></div>
-			</div>
-			<div class="power-text"><span id="powerValue">50</span>%</div>
+
+		<!-- Shot Feedback Messages -->
+		<div id="feedbackDisplay">
+			<div id="feedbackMessage" class="feedback-message"></div>
 		</div>
-		
+
+		<!-- Game Status Display -->
+		<div id="statusDisplay">
+			<div id="gameStatus" class="game-status">Ready to Shoot!</div>
+		</div>
+
 		<script src="src/hw5.js" type="module"></script>
 	</body>
 </html>

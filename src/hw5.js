@@ -29,6 +29,17 @@ function degrees_to_radians(degrees) {
   return degrees * (pi/180);
 }
 
+// UI Enhancement Variables
+let gameStats = {
+  score: 0,
+  shotsMade: 0,
+  shotAttempts: 0,
+  shotPower: 50,
+  gameStatus: "Ready to Shoot!",
+  currentStreak: 0,
+  bestStreak: 0
+};
+
 // Global variables for basketball movement
 let basketball;
 const courtBoundaries = {
@@ -131,11 +142,181 @@ const hoopPositions = [
   { x: 14, y: physicsConfig.rimHeight, z: 0, side: 'right' }
 ];
 
-// Scoring system functions
+// ===== UI ENHANCEMENT FUNCTIONS =====
+
+function initializeUI() {
+  updateScoreDisplay();
+  updatePowerDisplay();
+  updateGameStatus("Ready to Shoot!");
+}
+
+function updateScoreDisplay() {
+  // Update basic score elements
+  const currentScore = document.getElementById('currentScore');
+  const shotsMade = document.getElementById('shotsMade');
+  const shotAttempts = document.getElementById('shotAttempts');
+  const accuracy = document.getElementById('accuracy');
+  
+  if (currentScore) currentScore.textContent = gameStats.score;
+  if (shotsMade) shotsMade.textContent = gameStats.shotsMade;
+  if (shotAttempts) shotAttempts.textContent = gameStats.shotAttempts;
+  
+  // Calculate and display accuracy
+  const accuracyPercent = gameStats.shotAttempts > 0 
+    ? Math.round((gameStats.shotsMade / gameStats.shotAttempts) * 100) 
+    : 0;
+  if (accuracy) accuracy.textContent = accuracyPercent + '%';
+  
+  // Add pulse animation to score when updated
+  const scoreDisplay = document.getElementById('scoreDisplay');
+  if (scoreDisplay) {
+    scoreDisplay.classList.add('pulse');
+    setTimeout(() => scoreDisplay.classList.remove('pulse'), 500);
+  }
+}
+
+function updatePowerDisplay() {
+  const powerBar = document.getElementById('powerBar');
+  const powerValue = document.getElementById('powerValue');
+  
+  if (powerBar) {
+    powerBar.style.width = gameStats.shotPower + '%';
+  }
+  
+  if (powerValue) {
+    powerValue.textContent = gameStats.shotPower + '%';
+    
+    // Color coding based on power level
+    if (gameStats.shotPower < 30) {
+      powerValue.style.color = '#00ff00'; // Green for low power
+    } else if (gameStats.shotPower < 70) {
+      powerValue.style.color = '#ffff00'; // Yellow for medium power
+    } else {
+      powerValue.style.color = '#ff0000'; // Red for high power
+    }
+  }
+}
+
+function updateGameStatus(status) {
+  gameStats.gameStatus = status;
+  const gameStatusElement = document.getElementById('gameStatus');
+  if (gameStatusElement) {
+    gameStatusElement.textContent = status;
+  }
+}
+
+function showShotFeedback(isSuccess, message = null) {
+  const feedbackMessage = document.getElementById('feedbackMessage');
+  
+  if (!feedbackMessage) return;
+  
+  // Clear previous classes
+  feedbackMessage.classList.remove('show', 'success', 'miss');
+  
+  if (isSuccess) {
+    feedbackMessage.textContent = message || 'SHOT MADE! 🏀';
+    feedbackMessage.classList.add('success');
+  } else {
+    feedbackMessage.textContent = message || 'MISSED SHOT!';
+    feedbackMessage.classList.add('miss');
+  }
+  
+  // Show the message
+  feedbackMessage.classList.add('show');
+  
+  // Hide after 2 seconds
+  setTimeout(() => {
+    feedbackMessage.classList.remove('show');
+  }, 2000);
+}
+
+function onShotAttemptUI() {
+  gameStats.shotAttempts++;
+  updateScoreDisplay();
+  updateGameStatus("Shot in progress...");
+  showShotFeedback(false, "SHOOTING...");
+  
+  // Flash the power display to show shot taken
+  const powerDisplay = document.getElementById('powerDisplay');
+  if (powerDisplay) {
+    powerDisplay.classList.add('flash');
+    setTimeout(() => powerDisplay.classList.remove('flash'), 300);
+  }
+}
+
+function onShotMadeUI() {
+  gameStats.score += 2; // 2 points per basket
+  gameStats.shotsMade++;
+  gameStats.currentStreak++;
+  gameStats.bestStreak = Math.max(gameStats.bestStreak, gameStats.currentStreak);
+  
+  updateScoreDisplay();
+  
+  // Show streak message for 3+ consecutive shots
+  if (gameStats.currentStreak >= 3) {
+    updateGameStatus(`🔥 ${gameStats.currentStreak} STREAK! 🔥`);
+    showShotFeedback(true, `🔥 ${gameStats.currentStreak} STREAK! 🔥`);
+  } else {
+    updateGameStatus("Great shot! Ready for next...");
+    showShotFeedback(true, 'SHOT MADE! +2 🏀');
+  }
+}
+
+function onShotMissedUI() {
+  gameStats.currentStreak = 0; // Reset streak on miss
+  updateGameStatus("Missed! Try again...");
+  showShotFeedback(false, 'MISSED SHOT!');
+  updateScoreDisplay(); // Update accuracy
+}
+
+function adjustShotPower(increase) {
+  const oldPower = gameStats.shotPower;
+  
+  if (increase) {
+    gameStats.shotPower = Math.min(100, gameStats.shotPower + shotPowerConfig.step);
+    updateGameStatus("Power increased!");
+  } else {
+    gameStats.shotPower = Math.max(0, gameStats.shotPower - shotPowerConfig.step);
+    updateGameStatus("Power decreased!");
+  }
+  
+  // Sync with existing power state
+  shotPowerState.target = gameStats.shotPower;
+  shotPowerState.current = gameStats.shotPower;
+  shotPowerState.displayValue = gameStats.shotPower;
+  
+  updatePowerDisplay();
+  
+  // Show power change feedback
+  if (gameStats.shotPower !== oldPower) {
+    const powerDisplay = document.getElementById('powerDisplay');
+    if (powerDisplay) {
+      powerDisplay.classList.add('pulse');
+      setTimeout(() => powerDisplay.classList.remove('pulse'), 300);
+    }
+  }
+}
+
+function onBallResetUI() {
+  updateGameStatus("Ball reset to center!");
+  gameStats.shotPower = 50; // Reset power to default
+  shotPowerState.target = 50;
+  shotPowerState.current = 50;
+  shotPowerState.displayValue = 50;
+  updatePowerDisplay();
+}
+
+function onBallMoveUI(direction) {
+  updateGameStatus(`Moving ${direction}...`);
+}
+
+// ===== END UI ENHANCEMENT FUNCTIONS =====
+
+// Scoring system functions (enhanced with UI)
 function recordShotAttempt() {
   scoringSystem.shotAttempts++;
+  onShotAttemptUI(); // Add UI feedback
   console.log(`Shot attempt #${scoringSystem.shotAttempts}`);
-  updateScoreDisplay();
 }
 
 function recordMadeShot(points = 2) {
@@ -143,20 +324,27 @@ function recordMadeShot(points = 2) {
   scoringSystem.shotsMade++;
   scoringSystem.lastShotResult = 'made';
   
+  // Sync with UI stats
+  gameStats.score = scoringSystem.score;
+  gameStats.shotsMade = scoringSystem.shotsMade;
+  gameStats.shotAttempts = scoringSystem.shotAttempts;
+  
   // Calculate accuracy percentage
   scoringSystem.accuracy = Math.round((scoringSystem.shotsMade / scoringSystem.shotAttempts) * 100);
   
   console.log(`🏀 SHOT MADE! +${points} points (${scoringSystem.score} total)`);
   console.log(`Made: ${scoringSystem.shotsMade}, Accuracy: ${scoringSystem.accuracy}%`);
   
-  // Show visual feedback
-  showShotFeedback('SHOT MADE!', 'shot-made');
-  
-  updateScoreDisplay();
+  onShotMadeUI(); // Add UI feedback
 }
 
 function recordMissedShot() {
   scoringSystem.lastShotResult = 'missed';
+  
+  // Sync with UI stats
+  gameStats.score = scoringSystem.score;
+  gameStats.shotsMade = scoringSystem.shotsMade;
+  gameStats.shotAttempts = scoringSystem.shotAttempts;
   
   // Calculate accuracy percentage
   scoringSystem.accuracy = scoringSystem.shotAttempts > 0 ? 
@@ -164,14 +352,11 @@ function recordMissedShot() {
   
   console.log(`❌ Shot missed. Accuracy: ${scoringSystem.accuracy}%`);
   
-  // Show visual feedback
-  showShotFeedback('MISSED SHOT', 'shot-missed');
-  
-  updateScoreDisplay();
+  onShotMissedUI(); // Add UI feedback
 }
 
-// Visual feedback for shots
-function showShotFeedback(message, className) {
+// Visual feedback for shots (legacy function - now handled by UI functions)
+function showShotFeedbackLegacy(message, className) {
   const gameStatus = document.getElementById('gameStatus');
   if (gameStatus) {
     gameStatus.textContent = message;
@@ -179,38 +364,12 @@ function showShotFeedback(message, className) {
     
     // Clear message after animation
     setTimeout(() => {
-      gameStatus.textContent = '';
+      gameStatus.textContent = gameStats.gameStatus;
       gameStatus.className = '';
     }, 2000);
   }
 }
 
-// Update score display UI
-function updateScoreDisplay() {
-  const currentScore = document.getElementById('currentScore');
-  const shotAttempts = document.getElementById('shotAttempts');
-  const accuracy = document.getElementById('accuracy');
-  
-  if (currentScore) {
-    currentScore.textContent = scoringSystem.score;
-  }
-  
-  if (shotAttempts) {
-    shotAttempts.textContent = scoringSystem.shotAttempts;
-  }
-  
-  if (accuracy) {
-    const accuracyText = scoringSystem.shotAttempts > 0 ? 
-      `${scoringSystem.accuracy}%` : '0%';
-    accuracy.textContent = accuracyText;
-  }
-  
-  // Update shots made if element exists
-  const shotsMade = document.getElementById('shotsMade');
-  if (shotsMade) {
-    shotsMade.textContent = scoringSystem.shotsMade;
-  }
-}
 function calculateBallRotation(velocity) {
   // Calculate rotation based on ball movement
   // For a rolling ball: angular velocity = linear velocity / radius
@@ -287,6 +446,7 @@ function updateBallRotation() {
     console.log(`Ball rotation speed: ${rotationSpeed.toFixed(2)} rad/s`);
   }
 }
+
 function checkGroundCollision() {
   const groundY = physicsConfig.courtHeight + physicsConfig.ballRadius;
   
@@ -310,6 +470,13 @@ function checkGroundCollision() {
       ballPhysics.velocity = { x: 0, y: 0, z: 0 };
       ballPhysics.bounceCount = 0;
       console.log("Ball came to rest on ground");
+      
+      // Check if we need to record a miss (ball stopped without scoring)
+      if (!ballPhysics.scoreRecorded && !ballPhysics.missRecorded) {
+        ballPhysics.missRecorded = true;
+        recordMissedShot();
+      }
+      
       return true; // Stop bouncing
     }
   }
@@ -381,10 +548,13 @@ function checkRimCollisions() {
       
       // Check if this is a successful shot (ball going downward through rim)
       if (horizontalDistance <= physicsConfig.rimRadius * 0.8 && 
-          ballPhysics.velocity.y < 0) {
+          ballPhysics.velocity.y < 0 && !ballPhysics.scoreRecorded) {
         // SCORE! Ball went through the hoop
         ballPhysics.lastCollision = `score-${hoop.side}`;
+        ballPhysics.scoreRecorded = true; // Prevent multiple scoring
         console.log(`🏀 SCORE! Shot made on ${hoop.side} hoop!`);
+        
+        recordMadeShot();
         
         // Let ball continue through (don't bounce off rim)
         return;
@@ -409,11 +579,13 @@ function checkRimCollisions() {
         
         ballPhysics.lastCollision = `rim-${hoop.side}`;
         ballPhysics.bounceCount++;
+        ballPhysics.rimHit = true; // Mark that rim was hit
         console.log(`Rim collision on ${hoop.side} hoop, bounce #${ballPhysics.bounceCount}`);
       }
     }
   });
 }
+
 function createBasketballCourt() {
   // Court floor - just a simple brown surface
   const courtGeometry = new THREE.BoxGeometry(30, 0.2, 15);
@@ -582,6 +754,12 @@ function updateBasketballPhysics() {
     ballPhysics.position.y = physicsConfig.courtHeight + physicsConfig.ballRadius;
     ballPhysics.bounceCount = 0;
     console.log("Ball stopped due to low energy");
+    
+    // Check if we need to record a miss (ball stopped without scoring)
+    if (!ballPhysics.scoreRecorded && !ballPhysics.missRecorded) {
+      ballPhysics.missRecorded = true;
+      recordMissedShot();
+    }
   }
   
   // Emergency boundary check - reset if ball goes way out of bounds
@@ -594,6 +772,12 @@ function updateBasketballPhysics() {
     ballPhysics.velocity = { x: 0, y: 0, z: 0 };
     ballPhysics.bounceCount = 0;
     console.log("Ball reset due to going out of bounds");
+    
+    // Record as miss if not already recorded
+    if (!ballPhysics.scoreRecorded && !ballPhysics.missRecorded) {
+      ballPhysics.missRecorded = true;
+      recordMissedShot();
+    }
   }
   
   // Update basketball visual position
@@ -692,45 +876,68 @@ function updateShotPower() {
   // Update display value (rounded for UI)
   shotPowerState.displayValue = Math.round(shotPowerState.current);
   
+  // Sync with UI
+  gameStats.shotPower = shotPowerState.displayValue;
+  
   // Update UI elements
   updatePowerIndicatorUI();
 }
 
-// Update power indicator UI elements
+// Update power indicator UI elements (legacy function for compatibility)
 function updatePowerIndicatorUI() {
-  const powerFill = document.getElementById('powerFill');
-  const powerValue = document.getElementById('powerValue');
-  
-  if (powerFill) {
-    powerFill.style.width = shotPowerState.displayValue + '%';
-  }
-  
-  if (powerValue) {
-    powerValue.textContent = shotPowerState.displayValue;
-  }
-  
-  // Add visual feedback based on power level
-  const powerIndicator = document.getElementById('powerIndicator');
-  if (powerIndicator) {
-    // Remove existing power-level classes
-    powerIndicator.classList.remove('power-low', 'power-medium', 'power-high');
-    
-    // Add appropriate class based on power level
-    if (shotPowerState.displayValue < 33) {
-      powerIndicator.classList.add('power-low');
-    } else if (shotPowerState.displayValue < 67) {
-      powerIndicator.classList.add('power-medium');
-    } else {
-      powerIndicator.classList.add('power-high');
-    }
-  }
+  // This function now delegates to the new UI system
+  updatePowerDisplay();
 }
 
-// Input handling for movement controls
+// Reset basketball to center court
+function resetBasketball() {
+  if (!basketball) return;
+  
+  // Stop any physics
+  ballPhysics.isFlying = false;
+  ballPhysics.velocity = { x: 0, y: 0, z: 0 };
+  ballPhysics.bounceCount = 0;
+  ballPhysics.scoreRecorded = false;
+  ballPhysics.missRecorded = false;
+  ballPhysics.rimHit = false;
+  
+  // Reset position to center court
+  const centerPos = {
+    x: 0,
+    y: movementConfig.courtSurfaceHeight + movementConfig.ballRadius,
+    z: 0
+  };
+  
+  basketball.position.set(centerPos.x, centerPos.y, centerPos.z);
+  ballPhysics.position = { ...centerPos };
+  
+  // Reset movement velocity
+  movementState.velocity = { x: 0, z: 0 };
+  movementState.targetVelocity = { x: 0, z: 0 };
+  
+  // Reset rotation
+  ballRotation.rotation = { x: 0, y: 0, z: 0 };
+  ballRotation.angularVelocity = { x: 0, y: 0, z: 0 };
+  
+  // UI feedback
+  onBallResetUI();
+  
+  console.log("Basketball reset to center court");
+}
+
+// Enhanced keyboard handling with UI feedback
 function handleKeyDown(e) {
   // Existing orbit camera toggle
   if (e.key === "o" || e.key === "O") {
     isOrbitEnabled = !isOrbitEnabled;
+    updateGameStatus("Camera toggled!");
+    return;
+  }
+  
+  // Reset ball
+  if (e.key === "r" || e.key === "R") {
+    e.preventDefault();
+    resetBasketball();
     return;
   }
   
@@ -747,18 +954,22 @@ function handleKeyDown(e) {
       case 'ArrowLeft':
         e.preventDefault();
         movementState.keys.left = true;
+        onBallMoveUI('left');
         break;
       case 'ArrowRight':
         e.preventDefault();
         movementState.keys.right = true;
+        onBallMoveUI('right');
         break;
       case 'ArrowUp':
         e.preventDefault();
         movementState.keys.up = true;
+        onBallMoveUI('forward');
         break;
       case 'ArrowDown':
         e.preventDefault();
         movementState.keys.down = true;
+        onBallMoveUI('backward');
         break;
     }
   }
@@ -768,10 +979,12 @@ function handleKeyDown(e) {
     case 'KeyW':
       e.preventDefault();
       movementState.keys.powerUp = true;
+      adjustShotPower(true);
       break;
     case 'KeyS':
       e.preventDefault();
       movementState.keys.powerDown = true;
+      adjustShotPower(false);
       break;
   }
 }
@@ -817,6 +1030,18 @@ camera.applyMatrix4(cameraTranslate);
 // Orbit controls
 const controls = new OrbitControls(camera, renderer.domElement);
 let isOrbitEnabled = true;
+
+// Initialize UI after DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+  initializeUI();
+});
+
+// Initialize UI immediately if DOM is already loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeUI);
+} else {
+  initializeUI();
+}
 
 // Event listeners
 document.addEventListener('keydown', handleKeyDown);
