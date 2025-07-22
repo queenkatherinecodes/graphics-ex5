@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset="utf-8">
-		<title>HW5</title>
+		<title>HW6 - Interactive Basketball Game</title>
 		<link rel="stylesheet" href="src/ui.css">
 		<style>
 			body { margin: 0; }
@@ -11,12 +11,43 @@
 	</head>
 	<body>
 		<!-- Score Display Container -->
-		<div id="scoreDisplay">TODO: SCOREBOARD</div>
+		<div id="scoreDisplay">
+			<div>Score: <span id="currentScore">0</span></div>
+			<div>Shots: <span id="shotAttempts">0</span></div>
+			<div>Accuracy: <span id="accuracy">0%</span></div>
+		</div>
+		
+		<!-- Game Status Messages -->
+		<div id="gameStatus"></div>
+		
 		<!-- Controls Instructions Container -->
 		<div id="controlsDisplay">
 			<h3>Controls:</h3>
-			<p>O - Toggle orbit camera</p>
+			<div class="control-section">
+				<h4>Movement:</h4>
+				<p>← → ↑ ↓ - Move basketball</p>
+			</div>
+			<div class="control-section">
+				<h4>Camera:</h4>
+				<p>O - Toggle orbit camera</p>
+			</div>
+			<div class="control-section">
+				<h4>Coming Soon:</h4>
+				<p>W/S - Adjust shot power</p>
+				<p>SPACE - Shoot basketball</p>
+				<p>R - Reset position</p>
+			</div>
 		</div>
+		
+		<!-- Shot Power Indicator (for future phases) -->
+		<div id="powerIndicator">
+			<div class="power-label">Shot Power</div>
+			<div class="power-bar">
+				<div id="powerFill" class="power-fill"></div>
+			</div>
+			<div class="power-text"><span id="powerValue">50</span>%</div>
+		</div>
+		
 		<script src="src/hw5.js" type="module"></script>
 	</body>
 </html>

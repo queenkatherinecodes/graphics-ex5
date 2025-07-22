@@ -1,3 +1,4 @@
+/* Controls Display */
 #controlsDisplay {
     position: absolute;
     bottom: 20px;
@@ -6,16 +7,35 @@
     font-size: 16px;
     font-family: Arial, sans-serif;
     text-align: left;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 10px;
+    border: 2px solid #ffffff;
+    max-width: 250px;
 }
 
 #controlsDisplay h3 {
     margin: 0 0 10px 0;
+    color: #ffaa00;
+    text-decoration: underline;
+}
+
+#controlsDisplay h4 {
+    margin: 10px 0 5px 0;
+    color: #ffffff;
+    font-size: 14px;
 }
 
 #controlsDisplay p {
-    margin: 5px 0;
+    margin: 3px 0;
+    font-size: 13px;
 }
 
+.control-section {
+    margin-bottom: 8px;
+}
+
+/* Score Display */
 #scoreDisplay {
     position: absolute;
     top: 20px;
@@ -24,4 +44,155 @@
     font-size: 24px;
     font-family: Arial, sans-serif;
     font-weight: bold;
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 15px 20px;
+    border-radius: 10px;
+    border: 2px solid #ffaa00;
+    min-width: 200px;
+}
+
+#scoreDisplay div {
+    margin: 5px 0;
+}
+
+#currentScore {
+    color: #00ff00;
+}
+
+#shotAttempts {
+    color: #ffaa00;
+}
+
+#accuracy {
+    color: #00aaff;
+}
+
+/* Game Status Messages */
+#gameStatus {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 48px;
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    text-align: center;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.shot-made {
+    color: #00ff00;
+    animation: shotMadeAnimation 2s ease-out;
+}
+
+.shot-missed {
+    color: #ff0000;
+    animation: shotMissedAnimation 2s ease-out;
+}
+
+@keyframes shotMadeAnimation {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+@keyframes shotMissedAnimation {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    20% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+/* Shot Power Indicator */
+#powerIndicator {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    color: white;
+    font-family: Arial, sans-serif;
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 15px;
+    border-radius: 10px;
+    border: 2px solid #ffaa00;
+    width: 200px;
+}
+
+.power-label {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #ffaa00;
+}
+
+.power-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #333333;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    border: 1px solid #ffffff;
+}
+
+.power-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff00 0%, #ffff00 50%, #ff0000 100%);
+    width: 50%;
+    transition: width 0.1s ease;
+    border-radius: 10px;
+}
+
+.power-text {
+    text-align: center;
+    font-weight: bold;
+    color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    #controlsDisplay {
+        font-size: 14px;
+        max-width: 200px;
+        bottom: 10px;
+        left: 10px;
+    }
+    
+    #scoreDisplay {
+        font-size: 18px;
+        top: 10px;
+        left: 10px;
+        padding: 10px 15px;
+        min-width: 150px;
+    }
+    
+    #powerIndicator {
+        top: 10px;
+        right: 10px;
+        width: 150px;
+        padding: 10px;
+    }
+    
+    #gameStatus {
+        font-size: 36px;
+    }
+}
+
+/* Animation for smooth transitions */
+.smooth-transition {
+    transition: all 0.3s ease;
+}
+
+/* Highlight active controls */
+.control-active {
+    color: #00ff00 !important;
+    font-weight: bold;
+}
+
+/* Court boundary indicator (visual debugging - can be removed) */
+.debug-boundary {
+    position: absolute;
+    border: 2px dashed rgba(255, 0, 0, 0.5);
+    pointer-events: none;
 }
