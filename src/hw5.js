@@ -101,7 +101,10 @@ const ballPhysics = {
   restingPosition: { x: 0, y: 0, z: 0 }, // Position when ball is at rest
   timeInFlight: 0,      // How long has ball been flying
   lastCollision: null,  // Last collision type for debugging
-  bounceCount: 0        // Number of bounces for this shot
+  bounceCount: 0,       // Number of bounces for this shot
+  scoreRecorded: false, // Has scoring been recorded for this shot?
+  missRecorded: false,  // Has miss been recorded for this shot?
+  rimHit: false         // Did ball hit the rim this shot?
 };
 
 // Basketball rotation state
@@ -113,13 +116,101 @@ const ballRotation = {
   minRotationSpeed: 0.1 // Minimum speed to show rotation
 };
 
+// Scoring system state
+const scoringSystem = {
+  score: 0,             // Total points scored
+  shotAttempts: 0,      // Number of shots taken
+  shotsMade: 0,         // Number of successful shots
+  accuracy: 0,          // Shooting percentage
+  lastShotResult: null  // 'made' or 'missed'
+};
+
 // Hoop positions (matching your updated basketballHoops.js)
 const hoopPositions = [
   { x: -14, y: physicsConfig.rimHeight, z: 0, side: 'left' },
   { x: 14, y: physicsConfig.rimHeight, z: 0, side: 'right' }
 ];
 
-// Calculate ball rotation based on velocity
+// Scoring system functions
+function recordShotAttempt() {
+  scoringSystem.shotAttempts++;
+  console.log(`Shot attempt #${scoringSystem.shotAttempts}`);
+  updateScoreDisplay();
+}
+
+function recordMadeShot(points = 2) {
+  scoringSystem.score += points;
+  scoringSystem.shotsMade++;
+  scoringSystem.lastShotResult = 'made';
+  
+  // Calculate accuracy percentage
+  scoringSystem.accuracy = Math.round((scoringSystem.shotsMade / scoringSystem.shotAttempts) * 100);
+  
+  console.log(`🏀 SHOT MADE! +${points} points (${scoringSystem.score} total)`);
+  console.log(`Made: ${scoringSystem.shotsMade}, Accuracy: ${scoringSystem.accuracy}%`);
+  
+  // Show visual feedback
+  showShotFeedback('SHOT MADE!', 'shot-made');
+  
+  updateScoreDisplay();
+}
+
+function recordMissedShot() {
+  scoringSystem.lastShotResult = 'missed';
+  
+  // Calculate accuracy percentage
+  scoringSystem.accuracy = scoringSystem.shotAttempts > 0 ? 
+    Math.round((scoringSystem.shotsMade / scoringSystem.shotAttempts) * 100) : 0;
+  
+  console.log(`❌ Shot missed. Accuracy: ${scoringSystem.accuracy}%`);
+  
+  // Show visual feedback
+  showShotFeedback('MISSED SHOT', 'shot-missed');
+  
+  updateScoreDisplay();
+}
+
+// Visual feedback for shots
+function showShotFeedback(message, className) {
+  const gameStatus = document.getElementById('gameStatus');
+  if (gameStatus) {
+    gameStatus.textContent = message;
+    gameStatus.className = className;
+    
+    // Clear message after animation
+    setTimeout(() => {
+      gameStatus.textContent = '';
+      gameStatus.className = '';
+    }, 2000);
+  }
+}
+
+// Update score display UI
+function updateScoreDisplay() {
+  const currentScore = document.getElementById('currentScore');
+  const shotAttempts = document.getElementById('shotAttempts');
+  const accuracy = document.getElementById('accuracy');
+  
+  if (currentScore) {
+    currentScore.textContent = scoringSystem.score;
+  }
+  
+  if (shotAttempts) {
+    shotAttempts.textContent = scoringSystem.shotAttempts;
+  }
+  
+  if (accuracy) {
+    const accuracyText = scoringSystem.shotAttempts > 0 ? 
+      `${scoringSystem.accuracy}%` : '0%';
+    accuracy.textContent = accuracyText;
+  }
+  
+  // Update shots made if element exists
+  const shotsMade = document.getElementById('shotsMade');
+  if (shotsMade) {
+    shotsMade.textContent = scoringSystem.shotsMade;
+  }
+}
 function calculateBallRotation(velocity) {
   // Calculate rotation based on ball movement
   // For a rolling ball: angular velocity = linear velocity / radius
@@ -411,6 +502,9 @@ function getShotVelocity() {
 function shootBasketball() {
   if (ballPhysics.isFlying || !basketball) return;
   
+  // Record shot attempt
+  recordShotAttempt();
+  
   // Get current shot velocity based on power
   const shotVelocity = getShotVelocity();
   
@@ -432,6 +526,11 @@ function shootBasketball() {
   ballPhysics.bounceCount = 0;  // Reset bounce counter
   ballPhysics.lastCollision = null;  // Reset collision tracker
   
+  // Reset scoring state for new shot
+  ballPhysics.scoreRecorded = false;
+  ballPhysics.missRecorded = false;
+  ballPhysics.rimHit = false;
+  
   // Store resting position for potential reset
   ballPhysics.restingPosition = {
     x: basketball.position.x,
@@ -440,7 +539,7 @@ function shootBasketball() {
   };
   
   // Show shooting feedback
-  console.log(`🏀 Shot fired with ${shotPowerState.displayValue}% power toward ${targetHoop.side} hoop!`);
+  console.log(`🏀 Shot #${scoringSystem.shotAttempts} fired with ${shotPowerState.displayValue}% power toward ${targetHoop.side} hoop!`);
   console.log(`Distance: ${distance.toFixed(2)} units, Velocity: ${shotVelocity.toFixed(2)}`);
 }
 
