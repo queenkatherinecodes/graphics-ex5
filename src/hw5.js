@@ -87,7 +87,7 @@ const shotPowerState = {
   displayValue: shotPowerConfig.default
 };
 
-// Physics configuration
+// UPDATED Physics configuration with backboard support
 const physicsConfig = {
   gravity: -9.8,        // Gravity acceleration (m/s²)
   timeScale: 0.016,     // Time scale for physics (60 FPS)
@@ -101,7 +101,12 @@ const physicsConfig = {
   friction: 0.85,       // Friction coefficient (15% energy loss)
   minBounceVelocity: 0.5, // Minimum velocity to continue bouncing
   rimRadius: 0.225,     // Basketball rim radius (from basketballHoops.js)
-  ballRadius: 0.18      // Basketball radius
+  ballRadius: 0.18,     // Basketball radius
+  // NEW: Backboard collision parameters
+  backboardWidth: 1.8,
+  backboardHeight: 1.05,
+  backboardThickness: 0.05,
+  backboardBounce: 0.4
 };
 
 // Basketball physics state
@@ -136,10 +141,40 @@ const scoringSystem = {
   lastShotResult: null  // 'made' or 'missed'
 };
 
-// Hoop positions (matching your updated basketballHoops.js)
+// UPDATED hoop positions with backboard and rim data
 const hoopPositions = [
-  { x: -14, y: physicsConfig.rimHeight, z: 0, side: 'left' },
-  { x: 14, y: physicsConfig.rimHeight, z: 0, side: 'right' }
+  { 
+    x: -14, 
+    y: physicsConfig.rimHeight, 
+    z: 0, 
+    side: 'left',
+    backboard: {
+      x: -14 + 0.4, // backboard is 0.4 units toward center from hoop position
+      y: physicsConfig.rimHeight,
+      z: 0
+    },
+    rim: {
+      x: -14 + 0.4 - 0.25, // rim is 0.25 units in front of backboard
+      y: physicsConfig.rimHeight,
+      z: 0
+    }
+  },
+  { 
+    x: 14, 
+    y: physicsConfig.rimHeight, 
+    z: 0, 
+    side: 'right',
+    backboard: {
+      x: 14 - 0.4, // backboard is 0.4 units toward center from hoop position
+      y: physicsConfig.rimHeight,
+      z: 0
+    },
+    rim: {
+      x: 14 - 0.4 + 0.25, // rim is 0.25 units in front of backboard
+      y: physicsConfig.rimHeight,
+      z: 0
+    }
+  }
 ];
 
 // ===== UI ENHANCEMENT FUNCTIONS =====
@@ -355,21 +390,6 @@ function recordMissedShot() {
   onShotMissedUI(); // Add UI feedback
 }
 
-// Visual feedback for shots (legacy function - now handled by UI functions)
-function showShotFeedbackLegacy(message, className) {
-  const gameStatus = document.getElementById('gameStatus');
-  if (gameStatus) {
-    gameStatus.textContent = message;
-    gameStatus.className = className;
-    
-    // Clear message after animation
-    setTimeout(() => {
-      gameStatus.textContent = gameStats.gameStatus;
-      gameStatus.className = '';
-    }, 2000);
-  }
-}
-
 function calculateBallRotation(velocity) {
   // Calculate rotation based on ball movement
   // For a rolling ball: angular velocity = linear velocity / radius
@@ -531,58 +551,117 @@ function checkWallCollisions() {
   return collided;
 }
 
+// NEW: Backboard collision detection
+function checkBackboardCollision(hoop) {
+  const backboard = hoop.backboard;
+  const ball = ballPhysics.position;
+  const ballRadius = physicsConfig.ballRadius;
+  
+  // Check if ball is near backboard
+  const distanceToBackboard = Math.abs(ball.x - backboard.x);
+  
+  // Check if ball is within backboard bounds
+  const withinHeight = ball.y >= (backboard.y - physicsConfig.backboardHeight/2 - ballRadius) && 
+                      ball.y <= (backboard.y + physicsConfig.backboardHeight/2 + ballRadius);
+  const withinWidth = Math.abs(ball.z - backboard.z) <= (physicsConfig.backboardWidth/2 + ballRadius);
+  
+  // Check for collision
+  if (distanceToBackboard <= (physicsConfig.backboardThickness/2 + ballRadius) && 
+      withinHeight && withinWidth) {
+    
+    // Determine which side of backboard was hit
+    const isMovingTowardBackboard = (hoop.side === 'left' && ballPhysics.velocity.x > 0) ||
+                                   (hoop.side === 'right' && ballPhysics.velocity.x < 0);
+    
+    if (isMovingTowardBackboard) {
+      // Bounce off backboard
+      ballPhysics.velocity.x = -ballPhysics.velocity.x * physicsConfig.backboardBounce;
+      ballPhysics.velocity.y *= physicsConfig.backboardBounce;
+      ballPhysics.velocity.z *= physicsConfig.backboardBounce;
+      
+      // Push ball away from backboard
+      if (hoop.side === 'left') {
+        ballPhysics.position.x = backboard.x - (physicsConfig.backboardThickness/2 + ballRadius);
+      } else {
+        ballPhysics.position.x = backboard.x + (physicsConfig.backboardThickness/2 + ballRadius);
+      }
+      
+      ballPhysics.lastCollision = `backboard-${hoop.side}`;
+      ballPhysics.bounceCount++;
+      console.log(`Backboard collision on ${hoop.side} side`);
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// NEW: Improved rim scoring detection
+function checkRimScoring(hoop) {
+  const rim = hoop.rim;
+  const ball = ballPhysics.position;
+  
+  // Calculate distance from ball to rim center
+  const dx = ball.x - rim.x;
+  const dz = ball.z - rim.z;
+  const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+  
+  // Check if ball is at rim height and moving downward
+  const rimTop = rim.y + 0.1;
+  const rimBottom = rim.y - 0.15;
+  const isAtRimLevel = ball.y <= rimTop && ball.y >= rimBottom;
+  const isMovingDown = ballPhysics.velocity.y < -1; // Must be moving down with some speed
+  
+  // Check for successful shot (ball goes through rim)
+  if (isAtRimLevel && isMovingDown && 
+      horizontalDistance <= physicsConfig.rimRadius * 0.85 && // Within rim interior
+      !ballPhysics.scoreRecorded) {
+    
+    // SCORE!
+    ballPhysics.lastCollision = `score-${hoop.side}`;
+    ballPhysics.scoreRecorded = true;
+    console.log(`🏀 SCORE! Shot made on ${hoop.side} hoop!`);
+    recordMadeShot();
+    return;
+  }
+  
+  // Check for rim collision (ball hits rim edge)
+  if (isAtRimLevel && 
+      horizontalDistance > physicsConfig.rimRadius * 0.85 && 
+      horizontalDistance <= physicsConfig.rimRadius + physicsConfig.ballRadius) {
+    
+    // Calculate rim collision normal
+    const normalX = dx / horizontalDistance;
+    const normalZ = dz / horizontalDistance;
+    
+    // Reflect velocity off rim
+    const dotProduct = ballPhysics.velocity.x * normalX + ballPhysics.velocity.z * normalZ;
+    ballPhysics.velocity.x -= 2 * dotProduct * normalX * physicsConfig.rimBounce;
+    ballPhysics.velocity.z -= 2 * dotProduct * normalZ * physicsConfig.rimBounce;
+    ballPhysics.velocity.y *= physicsConfig.rimBounce;
+    
+    // Push ball away from rim
+    const pushDistance = (physicsConfig.rimRadius + physicsConfig.ballRadius) - horizontalDistance;
+    ballPhysics.position.x += normalX * pushDistance;
+    ballPhysics.position.z += normalZ * pushDistance;
+    
+    ballPhysics.lastCollision = `rim-${hoop.side}`;
+    ballPhysics.bounceCount++;
+    ballPhysics.rimHit = true;
+    console.log(`Rim collision on ${hoop.side} hoop`);
+  }
+}
+
+// UPDATED: Enhanced collision detection with backboard support
 function checkRimCollisions() {
   hoopPositions.forEach(hoop => {
-    // Calculate distance from ball to rim center
-    const dx = ballPhysics.position.x - hoop.x;
-    const dz = ballPhysics.position.z - hoop.z;
-    const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
-    
-    // Check if ball is near rim height and within rim radius
-    const rimTop = hoop.y + 0.05; // Slightly above rim
-    const rimBottom = hoop.y - 0.1; // Slightly below rim
-    
-    if (ballPhysics.position.y <= rimTop && 
-        ballPhysics.position.y >= rimBottom &&
-        horizontalDistance <= physicsConfig.rimRadius + physicsConfig.ballRadius) {
-      
-      // Check if this is a successful shot (ball going downward through rim)
-      if (horizontalDistance <= physicsConfig.rimRadius * 0.8 && 
-          ballPhysics.velocity.y < 0 && !ballPhysics.scoreRecorded) {
-        // SCORE! Ball went through the hoop
-        ballPhysics.lastCollision = `score-${hoop.side}`;
-        ballPhysics.scoreRecorded = true; // Prevent multiple scoring
-        console.log(`🏀 SCORE! Shot made on ${hoop.side} hoop!`);
-        
-        recordMadeShot();
-        
-        // Let ball continue through (don't bounce off rim)
-        return;
-      }
-      
-      // Ball hit the rim - bounce off
-      if (horizontalDistance > physicsConfig.rimRadius * 0.8) {
-        // Calculate rim collision normal
-        const normalX = dx / horizontalDistance;
-        const normalZ = dz / horizontalDistance;
-        
-        // Reflect velocity off rim
-        const dotProduct = ballPhysics.velocity.x * normalX + ballPhysics.velocity.z * normalZ;
-        ballPhysics.velocity.x -= 2 * dotProduct * normalX * physicsConfig.rimBounce;
-        ballPhysics.velocity.z -= 2 * dotProduct * normalZ * physicsConfig.rimBounce;
-        ballPhysics.velocity.y *= physicsConfig.rimBounce;
-        
-        // Push ball away from rim
-        const pushDistance = (physicsConfig.rimRadius + physicsConfig.ballRadius) - horizontalDistance;
-        ballPhysics.position.x += normalX * pushDistance;
-        ballPhysics.position.z += normalZ * pushDistance;
-        
-        ballPhysics.lastCollision = `rim-${hoop.side}`;
-        ballPhysics.bounceCount++;
-        ballPhysics.rimHit = true; // Mark that rim was hit
-        console.log(`Rim collision on ${hoop.side} hoop, bounce #${ballPhysics.bounceCount}`);
-      }
+    // First check backboard collision
+    if (checkBackboardCollision(hoop)) {
+      return; // If hit backboard, don't check rim
     }
+    
+    // Then check rim/scoring
+    checkRimScoring(hoop);
   });
 }
 
@@ -612,8 +691,8 @@ function findNearestHoop() {
   
   hoopPositions.forEach(hoop => {
     const distance = Math.sqrt(
-      Math.pow(ballPos.x - hoop.x, 2) + 
-      Math.pow(ballPos.z - hoop.z, 2)
+      Math.pow(ballPos.x - hoop.rim.x, 2) + 
+      Math.pow(ballPos.z - hoop.rim.z, 2)
     );
     
     if (distance < minDistance) {
@@ -625,49 +704,86 @@ function findNearestHoop() {
   return { hoop: nearestHoop, distance: minDistance };
 }
 
-// Calculate trajectory to reach target hoop
+// UPDATED: Improved trajectory calculation targeting rim position
 function calculateTrajectory(targetHoop, shotVelocity) {
   const ballPos = basketball.position;
   
-  // Distance to target
-  const dx = targetHoop.x - ballPos.x;
-  const dz = targetHoop.z - ballPos.z;
+  // Target the rim position, not the hoop position
+  const dx = targetHoop.rim.x - ballPos.x;
+  const dz = targetHoop.rim.z - ballPos.z;
   const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
   
-  // Height difference
-  const dy = targetHoop.y - ballPos.y;
+  // Height difference to rim
+  const dy = targetHoop.rim.y - ballPos.y;
   
-  // Calculate optimal launch angle for given velocity
+  // Calculate optimal trajectory for basketball shot
+  // Use a parabolic arc that peaks above the rim
   const g = Math.abs(physicsConfig.gravity);
-  const v = shotVelocity;
+  const arcHeight = Math.max(physicsConfig.minArcHeight, dy + 1.5); // Ensure good arc
   
-  // Use physics formula to find launch angle
-  // For projectile motion: range = v²sin(2θ)/g
-  // We'll use a fixed optimal angle and adjust velocity accordingly
-  const optimalAngle = Math.PI / 4; // 45 degrees for maximum range
-  const launchAngle = Math.atan2(dy + physicsConfig.minArcHeight, horizontalDistance);
+  // Calculate time to reach target
+  const discriminant = Math.sqrt(2 * arcHeight / g);
+  const timeToTarget = Math.sqrt(2 * (arcHeight - dy) / g) + discriminant;
   
   // Calculate velocity components
-  const totalTime = horizontalDistance / (v * Math.cos(launchAngle));
-  const vx = dx / totalTime;
-  const vz = dz / totalTime;
-  const vy = (dy - 0.5 * physicsConfig.gravity * totalTime * totalTime) / totalTime;
+  const vx = dx / timeToTarget;
+  const vz = dz / timeToTarget;
+  const vy = Math.sqrt(2 * g * arcHeight);
+  
+  // Scale velocity based on shot power
+  const powerMultiplier = shotVelocity / 15; // Normalize to reasonable range
   
   return {
-    velocity: { x: vx, y: vy, z: vz },
-    angle: launchAngle,
-    time: totalTime,
+    velocity: { 
+      x: vx * powerMultiplier, 
+      y: vy * powerMultiplier, 
+      z: vz * powerMultiplier 
+    },
+    angle: Math.atan2(vy, Math.sqrt(vx * vx + vz * vz)),
+    time: timeToTarget,
     distance: horizontalDistance
   };
 }
 
-// Get shot velocity based on current power
+// UPDATED: Calibrated shot velocity for perfect shots from center court
 function getShotVelocity() {
   const powerRatio = shotPowerState.current / 100;
-  const minVelocity = 8;  // Minimum shot velocity
-  const maxVelocity = 25; // Maximum shot velocity
+  
+  // Calibrated so that 50% power from center court makes a shot
+  const ballPos = basketball.position;
+  
+  // If ball is near center court (within 2 units of center)
+  const distanceFromCenter = Math.sqrt(ballPos.x * ballPos.x + ballPos.z * ballPos.z);
+  
+  if (distanceFromCenter <= 2 && Math.abs(shotPowerState.current - 50) <= 5) {
+    // Special calibration for center court at ~50% power
+    return 12; // Calibrated velocity for perfect shot from center
+  }
+  
+  // Normal velocity calculation for other positions/powers
+  const minVelocity = 6;   // Reduced minimum
+  const maxVelocity = 20;  // Reduced maximum
   
   return minVelocity + (maxVelocity - minVelocity) * powerRatio;
+}
+
+// NEW: Detect when a shot attempt should end
+function shouldEndShotAttempt() {
+  // End shot attempt if:
+  // 1. Ball has been flying for too long (missed)
+  // 2. Ball is on ground and moving very slowly
+  // 3. Ball went out of bounds
+  
+  const maxFlightTime = 8; // 8 seconds max flight time
+  const isOnGround = ballPhysics.position.y <= physicsConfig.courtHeight + physicsConfig.ballRadius + 0.1;
+  const isMovingSlowly = Math.sqrt(
+    ballPhysics.velocity.x * ballPhysics.velocity.x +
+    ballPhysics.velocity.y * ballPhysics.velocity.y +
+    ballPhysics.velocity.z * ballPhysics.velocity.z
+  ) < 1;
+  
+  return (ballPhysics.timeInFlight > maxFlightTime) ||
+         (isOnGround && isMovingSlowly && ballPhysics.bounceCount > 0);
 }
 
 // Shoot the basketball
@@ -715,7 +831,7 @@ function shootBasketball() {
   console.log(`Distance: ${distance.toFixed(2)} units, Velocity: ${shotVelocity.toFixed(2)}`);
 }
 
-// Update basketball physics when in flight
+// UPDATED: Enhanced physics update with improved shot detection
 function updateBasketballPhysics() {
   if (!ballPhysics.isFlying || !basketball) return;
   
@@ -730,36 +846,25 @@ function updateBasketballPhysics() {
   ballPhysics.position.y += ballPhysics.velocity.y * physicsConfig.timeScale;
   ballPhysics.position.z += ballPhysics.velocity.z * physicsConfig.timeScale;
   
-  // Check for rim collisions first (scoring takes priority)
+  // Check for rim/backboard collisions first (scoring takes priority)
   checkRimCollisions();
   
   // Check for wall collisions
   checkWallCollisions();
   
-  // Check for ground collision (this might stop the ball)
+  // Check for ground collision
   const ballStopped = checkGroundCollision();
   
-  // Check if ball has very low energy and should stop
-  const totalVelocity = Math.sqrt(
-    ballPhysics.velocity.x * ballPhysics.velocity.x +
-    ballPhysics.velocity.y * ballPhysics.velocity.y +
-    ballPhysics.velocity.z * ballPhysics.velocity.z
-  );
-  
-  if (totalVelocity < physicsConfig.minBounceVelocity && 
-      ballPhysics.position.y <= physicsConfig.courtHeight + physicsConfig.ballRadius + 0.01) {
-    // Ball has very low energy and is near the ground - stop it
+  // Check if shot attempt should end
+  if (shouldEndShotAttempt() && !ballPhysics.scoreRecorded && !ballPhysics.missRecorded) {
+    ballPhysics.missRecorded = true;
+    recordMissedShot();
+    
+    // Stop the ball
     ballPhysics.isFlying = false;
     ballPhysics.velocity = { x: 0, y: 0, z: 0 };
     ballPhysics.position.y = physicsConfig.courtHeight + physicsConfig.ballRadius;
-    ballPhysics.bounceCount = 0;
-    console.log("Ball stopped due to low energy");
-    
-    // Check if we need to record a miss (ball stopped without scoring)
-    if (!ballPhysics.scoreRecorded && !ballPhysics.missRecorded) {
-      ballPhysics.missRecorded = true;
-      recordMissedShot();
-    }
+    console.log("Shot attempt ended - recorded as miss");
   }
   
   // Emergency boundary check - reset if ball goes way out of bounds
