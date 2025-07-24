@@ -9,10 +9,8 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-// Set background color
 scene.background = new THREE.Color(0x000000);
 
-// Add lights to the scene
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 
@@ -20,7 +18,6 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(10, 20, 15);
 scene.add(directionalLight);
 
-// Enable shadows
 renderer.shadowMap.enabled = true;
 directionalLight.castShadow = true;
 
@@ -29,7 +26,7 @@ function degrees_to_radians(degrees) {
   return degrees * (pi/180);
 }
 
-// UI Enhancement Variables
+
 let gameStats = {
   score: 0,
   shotsMade: 0,
@@ -40,7 +37,7 @@ let gameStats = {
   bestStreak: 0
 };
 
-// Global variables for basketball movement
+
 let basketball;
 const courtBoundaries = {
   minX: -14.5,
@@ -49,24 +46,24 @@ const courtBoundaries = {
   maxZ: 7
 };
 
-// Movement configuration
+
 const movementConfig = {
-  speed: 0.15,          // Units per frame
-  smoothing: 0.85,      // Smoothing factor (0-1, higher = smoother)
+  speed: 0.15,          
+  smoothing: 0.85,      
   courtSurfaceHeight: 0.1,
   ballRadius: 0.18
 };
 
-// Shot power configuration
+
 const shotPowerConfig = {
-  min: 0,               // Minimum power (0%)
-  max: 100,             // Maximum power (100%)
-  default: 50,          // Default starting power (50%)
-  step: 2,              // Power adjustment per key press
-  smoothing: 0.9        // Power indicator smoothing
+  min: 0,               
+  max: 100,             
+  default: 50,          
+  step: 2,              
+  smoothing: 0.9        
 };
 
-// Movement state
+
 const movementState = {
   velocity: { x: 0, z: 0 },
   targetVelocity: { x: 0, z: 0 },
@@ -80,69 +77,100 @@ const movementState = {
   }
 };
 
-// Shot power state
+
 const shotPowerState = {
   current: shotPowerConfig.default,
   target: shotPowerConfig.default,
   displayValue: shotPowerConfig.default
 };
 
-// Physics configuration
 const physicsConfig = {
-  gravity: -9.8,        // Gravity acceleration (m/s²)
-  timeScale: 0.016,     // Time scale for physics (60 FPS)
-  minArcHeight: 2.0,    // Minimum arc height for successful shots
-  rimHeight: 3.15,      // Height of basketball rim
-  courtHeight: 0.1,     // Height of court surface
-  // Enhanced collision parameters
-  groundBounce: 0.6,    // Ground bounce energy retention (60%)
-  wallBounce: 0.4,      // Wall bounce energy retention (40%)
-  rimBounce: 0.3,       // Rim bounce energy retention (30%)
-  friction: 0.85,       // Friction coefficient (15% energy loss)
-  minBounceVelocity: 0.5, // Minimum velocity to continue bouncing
-  rimRadius: 0.225,     // Basketball rim radius (from basketballHoops.js)
-  ballRadius: 0.18      // Basketball radius
+  gravity: -9.8,        
+  timeScale: 0.016,     
+  minArcHeight: 2.0,    
+  rimHeight: 3.15,      
+  courtHeight: 0.1,     
+  groundBounce: 0.6,    
+  wallBounce: 0.4,      
+  rimBounce: 0.3,       
+  friction: 0.85,       
+  minBounceVelocity: 0.5, 
+  rimRadius: 0.225,     
+  ballRadius: 0.18,     
+  backboardWidth: 1.8,
+  backboardHeight: 1.05,
+  backboardThickness: 0.05,
+  backboardBounce: 0.4
 };
 
-// Basketball physics state
+
 const ballPhysics = {
-  isFlying: false,      // Is the ball currently in flight?
-  velocity: { x: 0, y: 0, z: 0 },  // Current velocity vector
-  position: { x: 0, y: 0, z: 0 },  // Current position
-  restingPosition: { x: 0, y: 0, z: 0 }, // Position when ball is at rest
-  timeInFlight: 0,      // How long has ball been flying
-  lastCollision: null,  // Last collision type for debugging
-  bounceCount: 0,       // Number of bounces for this shot
-  scoreRecorded: false, // Has scoring been recorded for this shot?
-  missRecorded: false,  // Has miss been recorded for this shot?
-  rimHit: false         // Did ball hit the rim this shot?
+  isFlying: false,     
+  velocity: { x: 0, y: 0, z: 0 },  
+  position: { x: 0, y: 0, z: 0 },  
+  restingPosition: { x: 0, y: 0, z: 0 }, 
+  timeInFlight: 0,      
+  lastCollision: null,  
+  bounceCount: 0,       
+  scoreRecorded: false, 
+  missRecorded: false,  
+  rimHit: false         
 };
 
-// Basketball rotation state
+
 const ballRotation = {
-  rotation: { x: 0, y: 0, z: 0 },  // Current rotation angles (radians)
-  angularVelocity: { x: 0, y: 0, z: 0 }, // Rotation speed per axis
-  rotationScale: 2.5,   // Multiplier for rotation speed
-  smoothing: 0.9,       // Rotation smoothing factor
-  minRotationSpeed: 0.1 // Minimum speed to show rotation
+  rotation: { x: 0, y: 0, z: 0 },  
+  angularVelocity: { x: 0, y: 0, z: 0 }, 
+  rotationScale: 2.5,   
+  smoothing: 0.9,       
+  minRotationSpeed: 0.1 
 };
 
-// Scoring system state
+
 const scoringSystem = {
-  score: 0,             // Total points scored
-  shotAttempts: 0,      // Number of shots taken
-  shotsMade: 0,         // Number of successful shots
-  accuracy: 0,          // Shooting percentage
-  lastShotResult: null  // 'made' or 'missed'
+  score: 0,             
+  shotAttempts: 0,      
+  shotsMade: 0,         
+  accuracy: 0,          
+  lastShotResult: null  
 };
 
-// Hoop positions (matching your updated basketballHoops.js)
 const hoopPositions = [
-  { x: -14, y: physicsConfig.rimHeight, z: 0, side: 'left' },
-  { x: 14, y: physicsConfig.rimHeight, z: 0, side: 'right' }
+  { 
+    x: -14, 
+    y: physicsConfig.rimHeight, 
+    z: 0, 
+    side: 'left',
+    backboard: {
+      x: -14 + 0.4, 
+      y: physicsConfig.rimHeight,
+      z: 0
+    },
+    rim: {
+      x: -14 + 0.4 - 0.25, 
+      y: physicsConfig.rimHeight,
+      z: 0
+    }
+  },
+  { 
+    x: 14, 
+    y: physicsConfig.rimHeight, 
+    z: 0, 
+    side: 'right',
+    backboard: {
+      x: 14 - 0.4, 
+      y: physicsConfig.rimHeight,
+      z: 0
+    },
+    rim: {
+      x: 14 - 0.4 + 0.25, 
+      y: physicsConfig.rimHeight,
+      z: 0
+    }
+  }
 ];
 
-// ===== UI ENHANCEMENT FUNCTIONS =====
+
 
 function initializeUI() {
   updateScoreDisplay();
@@ -151,7 +179,7 @@ function initializeUI() {
 }
 
 function updateScoreDisplay() {
-  // Update basic score elements
+  
   const currentScore = document.getElementById('currentScore');
   const shotsMade = document.getElementById('shotsMade');
   const shotAttempts = document.getElementById('shotAttempts');
@@ -161,13 +189,11 @@ function updateScoreDisplay() {
   if (shotsMade) shotsMade.textContent = gameStats.shotsMade;
   if (shotAttempts) shotAttempts.textContent = gameStats.shotAttempts;
   
-  // Calculate and display accuracy
   const accuracyPercent = gameStats.shotAttempts > 0 
     ? Math.round((gameStats.shotsMade / gameStats.shotAttempts) * 100) 
     : 0;
   if (accuracy) accuracy.textContent = accuracyPercent + '%';
   
-  // Add pulse animation to score when updated
   const scoreDisplay = document.getElementById('scoreDisplay');
   if (scoreDisplay) {
     scoreDisplay.classList.add('pulse');
@@ -186,13 +212,12 @@ function updatePowerDisplay() {
   if (powerValue) {
     powerValue.textContent = gameStats.shotPower + '%';
     
-    // Color coding based on power level
     if (gameStats.shotPower < 30) {
-      powerValue.style.color = '#00ff00'; // Green for low power
+      powerValue.style.color = '#00ff00'; 
     } else if (gameStats.shotPower < 70) {
-      powerValue.style.color = '#ffff00'; // Yellow for medium power
+      powerValue.style.color = '#ffff00'; 
     } else {
-      powerValue.style.color = '#ff0000'; // Red for high power
+      powerValue.style.color = '#ff0000'; 
     }
   }
 }
@@ -210,21 +235,18 @@ function showShotFeedback(isSuccess, message = null) {
   
   if (!feedbackMessage) return;
   
-  // Clear previous classes
   feedbackMessage.classList.remove('show', 'success', 'miss');
   
   if (isSuccess) {
-    feedbackMessage.textContent = message || 'SHOT MADE! 🏀';
+    feedbackMessage.textContent = message || 'SHOT MADE!';
     feedbackMessage.classList.add('success');
   } else {
     feedbackMessage.textContent = message || 'MISSED SHOT!';
     feedbackMessage.classList.add('miss');
   }
   
-  // Show the message
   feedbackMessage.classList.add('show');
   
-  // Hide after 2 seconds
   setTimeout(() => {
     feedbackMessage.classList.remove('show');
   }, 2000);
@@ -236,7 +258,6 @@ function onShotAttemptUI() {
   updateGameStatus("Shot in progress...");
   showShotFeedback(false, "SHOOTING...");
   
-  // Flash the power display to show shot taken
   const powerDisplay = document.getElementById('powerDisplay');
   if (powerDisplay) {
     powerDisplay.classList.add('flash');
@@ -245,28 +266,26 @@ function onShotAttemptUI() {
 }
 
 function onShotMadeUI() {
-  gameStats.score += 2; // 2 points per basket
-  gameStats.shotsMade++;
+  console.log(`Incremented gamestats.score by 2`);
   gameStats.currentStreak++;
   gameStats.bestStreak = Math.max(gameStats.bestStreak, gameStats.currentStreak);
   
   updateScoreDisplay();
   
-  // Show streak message for 3+ consecutive shots
   if (gameStats.currentStreak >= 3) {
-    updateGameStatus(`🔥 ${gameStats.currentStreak} STREAK! 🔥`);
-    showShotFeedback(true, `🔥 ${gameStats.currentStreak} STREAK! 🔥`);
+    updateGameStatus(`${gameStats.currentStreak} STREAK!`);
+    showShotFeedback(true, `${gameStats.currentStreak} STREAK!`);
   } else {
     updateGameStatus("Great shot! Ready for next...");
-    showShotFeedback(true, 'SHOT MADE! +2 🏀');
+    showShotFeedback(true, 'SHOT MADE! +2');
   }
 }
 
 function onShotMissedUI() {
-  gameStats.currentStreak = 0; // Reset streak on miss
+  gameStats.currentStreak = 0; 
   updateGameStatus("Missed! Try again...");
   showShotFeedback(false, 'MISSED SHOT!');
-  updateScoreDisplay(); // Update accuracy
+  updateScoreDisplay(); 
 }
 
 function adjustShotPower(increase) {
@@ -280,14 +299,12 @@ function adjustShotPower(increase) {
     updateGameStatus("Power decreased!");
   }
   
-  // Sync with existing power state
   shotPowerState.target = gameStats.shotPower;
   shotPowerState.current = gameStats.shotPower;
   shotPowerState.displayValue = gameStats.shotPower;
   
   updatePowerDisplay();
   
-  // Show power change feedback
   if (gameStats.shotPower !== oldPower) {
     const powerDisplay = document.getElementById('powerDisplay');
     if (powerDisplay) {
@@ -299,7 +316,7 @@ function adjustShotPower(increase) {
 
 function onBallResetUI() {
   updateGameStatus("Ball reset to center!");
-  gameStats.shotPower = 50; // Reset power to default
+  gameStats.shotPower = 50; 
   shotPowerState.target = 50;
   shotPowerState.current = 50;
   shotPowerState.displayValue = 50;
@@ -310,12 +327,10 @@ function onBallMoveUI(direction) {
   updateGameStatus(`Moving ${direction}...`);
 }
 
-// ===== END UI ENHANCEMENT FUNCTIONS =====
 
-// Scoring system functions (enhanced with UI)
 function recordShotAttempt() {
   scoringSystem.shotAttempts++;
-  onShotAttemptUI(); // Add UI feedback
+  onShotAttemptUI();
   console.log(`Shot attempt #${scoringSystem.shotAttempts}`);
 }
 
@@ -324,61 +339,40 @@ function recordMadeShot(points = 2) {
   scoringSystem.shotsMade++;
   scoringSystem.lastShotResult = 'made';
   
-  // Sync with UI stats
   gameStats.score = scoringSystem.score;
   gameStats.shotsMade = scoringSystem.shotsMade;
   gameStats.shotAttempts = scoringSystem.shotAttempts;
   
-  // Calculate accuracy percentage
   scoringSystem.accuracy = Math.round((scoringSystem.shotsMade / scoringSystem.shotAttempts) * 100);
   
-  console.log(`🏀 SHOT MADE! +${points} points (${scoringSystem.score} total)`);
+  console.log(`SHOT MADE! +${points} points (${scoringSystem.score} total)`);
   console.log(`Made: ${scoringSystem.shotsMade}, Accuracy: ${scoringSystem.accuracy}%`);
   
-  onShotMadeUI(); // Add UI feedback
+  onShotMadeUI();
 }
 
 function recordMissedShot() {
   scoringSystem.lastShotResult = 'missed';
   
-  // Sync with UI stats
   gameStats.score = scoringSystem.score;
   gameStats.shotsMade = scoringSystem.shotsMade;
   gameStats.shotAttempts = scoringSystem.shotAttempts;
   
-  // Calculate accuracy percentage
   scoringSystem.accuracy = scoringSystem.shotAttempts > 0 ? 
     Math.round((scoringSystem.shotsMade / scoringSystem.shotAttempts) * 100) : 0;
   
-  console.log(`❌ Shot missed. Accuracy: ${scoringSystem.accuracy}%`);
+  console.log(`Shot missed. Accuracy: ${scoringSystem.accuracy}%`);
   
-  onShotMissedUI(); // Add UI feedback
-}
-
-// Visual feedback for shots (legacy function - now handled by UI functions)
-function showShotFeedbackLegacy(message, className) {
-  const gameStatus = document.getElementById('gameStatus');
-  if (gameStatus) {
-    gameStatus.textContent = message;
-    gameStatus.className = className;
-    
-    // Clear message after animation
-    setTimeout(() => {
-      gameStatus.textContent = gameStats.gameStatus;
-      gameStatus.className = '';
-    }, 2000);
-  }
+  onShotMissedUI();
 }
 
 function calculateBallRotation(velocity) {
-  // Calculate rotation based on ball movement
-  // For a rolling ball: angular velocity = linear velocity / radius
+
   const ballRadius = physicsConfig.ballRadius;
   
-  // Calculate angular velocity for each axis
-  const angularVelocityX = -velocity.z / ballRadius; // Rolling forward/backward
-  const angularVelocityY = 0; // No spinning around Y-axis for now
-  const angularVelocityZ = velocity.x / ballRadius;  // Rolling left/right
+  const angularVelocityX = -velocity.z / ballRadius; 
+  const angularVelocityY = 0; 
+  const angularVelocityZ = velocity.x / ballRadius;  
   
   return {
     x: angularVelocityX * ballRotation.rotationScale,
@@ -387,17 +381,13 @@ function calculateBallRotation(velocity) {
   };
 }
 
-// Update ball rotation based on current velocity
 function updateBallRotation() {
   if (!basketball) return;
   
-  // Get current velocity (either from physics or movement)
   let currentVelocity;
   if (ballPhysics.isFlying) {
-    // Use physics velocity during flight
     currentVelocity = ballPhysics.velocity;
   } else {
-    // Use movement velocity when on ground
     currentVelocity = {
       x: movementState.velocity.x / physicsConfig.timeScale,
       y: 0,
@@ -405,10 +395,9 @@ function updateBallRotation() {
     };
   }
   
-  // Calculate target angular velocity
   const targetAngularVelocity = calculateBallRotation(currentVelocity);
   
-  // Apply smoothing to angular velocity
+
   ballRotation.angularVelocity.x = 
     ballRotation.angularVelocity.x * ballRotation.smoothing + 
     targetAngularVelocity.x * (1 - ballRotation.smoothing);
@@ -421,27 +410,23 @@ function updateBallRotation() {
     ballRotation.angularVelocity.z * ballRotation.smoothing + 
     targetAngularVelocity.z * (1 - ballRotation.smoothing);
   
-  // Update rotation angles
   ballRotation.rotation.x += ballRotation.angularVelocity.x * physicsConfig.timeScale;
   ballRotation.rotation.y += ballRotation.angularVelocity.y * physicsConfig.timeScale;
   ballRotation.rotation.z += ballRotation.angularVelocity.z * physicsConfig.timeScale;
   
-  // Apply rotation to basketball mesh
-  const basketballMesh = basketball.children[0]; // Get the actual sphere mesh
+  const basketballMesh = basketball.children[0]; 
   if (basketballMesh) {
     basketballMesh.rotation.x = ballRotation.rotation.x;
     basketballMesh.rotation.y = ballRotation.rotation.y;
     basketballMesh.rotation.z = ballRotation.rotation.z;
   }
   
-  // Debug rotation (optional - can be removed)
   const rotationSpeed = Math.sqrt(
     ballRotation.angularVelocity.x * ballRotation.angularVelocity.x +
     ballRotation.angularVelocity.y * ballRotation.angularVelocity.y +
     ballRotation.angularVelocity.z * ballRotation.angularVelocity.z
   );
   
-  // Only log significant rotations to avoid console spam
   if (rotationSpeed > ballRotation.minRotationSpeed && Math.random() < 0.01) {
     console.log(`Ball rotation speed: ${rotationSpeed.toFixed(2)} rad/s`);
   }
@@ -451,33 +436,29 @@ function checkGroundCollision() {
   const groundY = physicsConfig.courtHeight + physicsConfig.ballRadius;
   
   if (ballPhysics.position.y <= groundY && ballPhysics.velocity.y < 0) {
-    // Ball hit the ground
     ballPhysics.position.y = groundY;
     ballPhysics.lastCollision = 'ground';
     ballPhysics.bounceCount++;
     
-    // Apply bounce with energy loss
     if (Math.abs(ballPhysics.velocity.y) > physicsConfig.minBounceVelocity) {
       ballPhysics.velocity.y = -ballPhysics.velocity.y * physicsConfig.groundBounce;
       ballPhysics.velocity.x *= physicsConfig.friction;
       ballPhysics.velocity.z *= physicsConfig.friction;
       
       console.log(`Ground bounce #${ballPhysics.bounceCount}, velocity: ${Math.abs(ballPhysics.velocity.y).toFixed(2)}`);
-      return false; // Continue bouncing
+      return false; 
     } else {
-      // Ball comes to rest
       ballPhysics.isFlying = false;
       ballPhysics.velocity = { x: 0, y: 0, z: 0 };
       ballPhysics.bounceCount = 0;
       console.log("Ball came to rest on ground");
       
-      // Check if we need to record a miss (ball stopped without scoring)
       if (!ballPhysics.scoreRecorded && !ballPhysics.missRecorded) {
         ballPhysics.missRecorded = true;
         recordMissedShot();
       }
       
-      return true; // Stop bouncing
+      return true; 
     }
   }
   return false;
@@ -486,7 +467,7 @@ function checkGroundCollision() {
 function checkWallCollisions() {
   let collided = false;
   
-  // Check X boundaries (left/right walls)
+
   if (ballPhysics.position.x <= courtBoundaries.minX + physicsConfig.ballRadius) {
     ballPhysics.position.x = courtBoundaries.minX + physicsConfig.ballRadius;
     ballPhysics.velocity.x = -ballPhysics.velocity.x * physicsConfig.wallBounce;
@@ -507,7 +488,7 @@ function checkWallCollisions() {
     console.log(`Right wall bounce #${ballPhysics.bounceCount}`);
   }
   
-  // Check Z boundaries (front/back walls)
+
   if (ballPhysics.position.z <= courtBoundaries.minZ + physicsConfig.ballRadius) {
     ballPhysics.position.z = courtBoundaries.minZ + physicsConfig.ballRadius;
     ballPhysics.velocity.z = -ballPhysics.velocity.z * physicsConfig.wallBounce;
@@ -531,66 +512,126 @@ function checkWallCollisions() {
   return collided;
 }
 
+
+function checkBackboardCollision(hoop) {
+  const backboard = hoop.backboard;
+  const ball = ballPhysics.position;
+  const ballRadius = physicsConfig.ballRadius;
+  
+
+  const distanceToBackboard = Math.abs(ball.x - backboard.x);
+  
+
+  const withinHeight = ball.y >= (backboard.y - physicsConfig.backboardHeight/2 - ballRadius) && 
+                      ball.y <= (backboard.y + physicsConfig.backboardHeight/2 + ballRadius);
+  const withinWidth = Math.abs(ball.z - backboard.z) <= (physicsConfig.backboardWidth/2 + ballRadius);
+  
+
+  if (distanceToBackboard <= (physicsConfig.backboardThickness/2 + ballRadius) && 
+      withinHeight && withinWidth) {
+    
+    const isMovingTowardBackboard = (hoop.side === 'left' && ballPhysics.velocity.x > 0) ||
+                                   (hoop.side === 'right' && ballPhysics.velocity.x < 0);
+    
+    if (isMovingTowardBackboard) {
+
+      ballPhysics.velocity.x = -ballPhysics.velocity.x * physicsConfig.backboardBounce;
+      ballPhysics.velocity.y *= physicsConfig.backboardBounce;
+      ballPhysics.velocity.z *= physicsConfig.backboardBounce;
+      
+
+      if (hoop.side === 'left') {
+        ballPhysics.position.x = backboard.x - (physicsConfig.backboardThickness/2 + ballRadius);
+      } else {
+        ballPhysics.position.x = backboard.x + (physicsConfig.backboardThickness/2 + ballRadius);
+      }
+      
+      ballPhysics.lastCollision = `backboard-${hoop.side}`;
+      ballPhysics.bounceCount++;
+      console.log(`Backboard collision on ${hoop.side} side`);
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+
+function checkRimScoring(hoop) {
+  const rim = hoop.rim;
+  const ball = ballPhysics.position;
+  
+
+  const dx = ball.x - rim.x;
+  const dz = ball.z - rim.z;
+  const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+  
+
+  const rimTop = rim.y + 0.1;
+  const rimBottom = rim.y - 0.15;
+  const isAtRimLevel = ball.y <= rimTop && ball.y >= rimBottom;
+  const isMovingDown = ballPhysics.velocity.y < -1; 
+  
+ 
+  if (isAtRimLevel && isMovingDown && 
+      horizontalDistance <= physicsConfig.rimRadius * 1.35 && 
+      !ballPhysics.scoreRecorded) {
+    
+
+    ballPhysics.lastCollision = `score-${hoop.side}`;
+    ballPhysics.scoreRecorded = true;
+    console.log(`SCORE! Shot made on ${hoop.side} hoop!`);
+    recordMadeShot();
+    return;
+  }
+  
+
+  if (isAtRimLevel && 
+      horizontalDistance > physicsConfig.rimRadius * 0.85 && 
+      horizontalDistance <= physicsConfig.rimRadius + physicsConfig.ballRadius) {
+    
+   
+    const normalX = dx / horizontalDistance;
+    const normalZ = dz / horizontalDistance;
+    
+
+    const dotProduct = ballPhysics.velocity.x * normalX + ballPhysics.velocity.z * normalZ;
+    ballPhysics.velocity.x -= 2 * dotProduct * normalX * physicsConfig.rimBounce;
+    ballPhysics.velocity.z -= 2 * dotProduct * normalZ * physicsConfig.rimBounce;
+    ballPhysics.velocity.y *= physicsConfig.rimBounce;
+    
+
+    const pushDistance = (physicsConfig.rimRadius + physicsConfig.ballRadius) - horizontalDistance;
+    ballPhysics.position.x += normalX * pushDistance;
+    ballPhysics.position.z += normalZ * pushDistance;
+    
+    ballPhysics.lastCollision = `rim-${hoop.side}`;
+    ballPhysics.bounceCount++;
+    ballPhysics.rimHit = true;
+    console.log(`Rim collision on ${hoop.side} hoop`);
+    console.log(`isAtRimLevel: ${isAtRimLevel}`);
+    console.log(`movingDown: ${isMovingDown}`);
+    console.log(`horizontal distance is: ${horizontalDistance}`);
+    console.log(`while required distance is: ${physicsConfig.rimRadius * 1.5}`);
+  }
+}
+
+
 function checkRimCollisions() {
   hoopPositions.forEach(hoop => {
-    // Calculate distance from ball to rim center
-    const dx = ballPhysics.position.x - hoop.x;
-    const dz = ballPhysics.position.z - hoop.z;
-    const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
-    
-    // Check if ball is near rim height and within rim radius
-    const rimTop = hoop.y + 0.05; // Slightly above rim
-    const rimBottom = hoop.y - 0.1; // Slightly below rim
-    
-    if (ballPhysics.position.y <= rimTop && 
-        ballPhysics.position.y >= rimBottom &&
-        horizontalDistance <= physicsConfig.rimRadius + physicsConfig.ballRadius) {
-      
-      // Check if this is a successful shot (ball going downward through rim)
-      if (horizontalDistance <= physicsConfig.rimRadius * 0.8 && 
-          ballPhysics.velocity.y < 0 && !ballPhysics.scoreRecorded) {
-        // SCORE! Ball went through the hoop
-        ballPhysics.lastCollision = `score-${hoop.side}`;
-        ballPhysics.scoreRecorded = true; // Prevent multiple scoring
-        console.log(`🏀 SCORE! Shot made on ${hoop.side} hoop!`);
-        
-        recordMadeShot();
-        
-        // Let ball continue through (don't bounce off rim)
-        return;
-      }
-      
-      // Ball hit the rim - bounce off
-      if (horizontalDistance > physicsConfig.rimRadius * 0.8) {
-        // Calculate rim collision normal
-        const normalX = dx / horizontalDistance;
-        const normalZ = dz / horizontalDistance;
-        
-        // Reflect velocity off rim
-        const dotProduct = ballPhysics.velocity.x * normalX + ballPhysics.velocity.z * normalZ;
-        ballPhysics.velocity.x -= 2 * dotProduct * normalX * physicsConfig.rimBounce;
-        ballPhysics.velocity.z -= 2 * dotProduct * normalZ * physicsConfig.rimBounce;
-        ballPhysics.velocity.y *= physicsConfig.rimBounce;
-        
-        // Push ball away from rim
-        const pushDistance = (physicsConfig.rimRadius + physicsConfig.ballRadius) - horizontalDistance;
-        ballPhysics.position.x += normalX * pushDistance;
-        ballPhysics.position.z += normalZ * pushDistance;
-        
-        ballPhysics.lastCollision = `rim-${hoop.side}`;
-        ballPhysics.bounceCount++;
-        ballPhysics.rimHit = true; // Mark that rim was hit
-        console.log(`Rim collision on ${hoop.side} hoop, bounce #${ballPhysics.bounceCount}`);
-      }
+  
+    if (checkBackboardCollision(hoop)) {
+      return; 
     }
+    
+    checkRimScoring(hoop);
   });
 }
 
 function createBasketballCourt() {
-  // Court floor - just a simple brown surface
   const courtGeometry = new THREE.BoxGeometry(30, 0.2, 15);
   const courtMaterial = new THREE.MeshPhongMaterial({ 
-    color: 0xc68642,  // Brown wood color
+    color: 0xc68642, 
     shininess: 50
   });
   const court = new THREE.Mesh(courtGeometry, courtMaterial);
@@ -600,11 +641,10 @@ function createBasketballCourt() {
   createCourtLines(scene);
   createBasketballHoops(scene);
   
-  // Create basketball and store reference
   basketball = createBasketball(scene);
 }
 
-// Find the nearest hoop to the basketball
+
 function findNearestHoop() {
   const ballPos = basketball.position;
   let nearestHoop = hoopPositions[0];
@@ -612,8 +652,8 @@ function findNearestHoop() {
   
   hoopPositions.forEach(hoop => {
     const distance = Math.sqrt(
-      Math.pow(ballPos.x - hoop.x, 2) + 
-      Math.pow(ballPos.z - hoop.z, 2)
+      Math.pow(ballPos.x - hoop.rim.x, 2) + 
+      Math.pow(ballPos.z - hoop.rim.z, 2)
     );
     
     if (distance < minDistance) {
@@ -625,68 +665,94 @@ function findNearestHoop() {
   return { hoop: nearestHoop, distance: minDistance };
 }
 
-// Calculate trajectory to reach target hoop
+
 function calculateTrajectory(targetHoop, shotVelocity) {
   const ballPos = basketball.position;
   
-  // Distance to target
-  const dx = targetHoop.x - ballPos.x;
-  const dz = targetHoop.z - ballPos.z;
+
+  const dx = targetHoop.rim.x - ballPos.x;
+  const dz = targetHoop.rim.z - ballPos.z;
   const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
   
-  // Height difference
-  const dy = targetHoop.y - ballPos.y;
+
+  const dy = targetHoop.rim.y - ballPos.y;
   
-  // Calculate optimal launch angle for given velocity
+
   const g = Math.abs(physicsConfig.gravity);
-  const v = shotVelocity;
+  const arcHeight = Math.max(physicsConfig.minArcHeight, dy + 1.5); 
   
-  // Use physics formula to find launch angle
-  // For projectile motion: range = v²sin(2θ)/g
-  // We'll use a fixed optimal angle and adjust velocity accordingly
-  const optimalAngle = Math.PI / 4; // 45 degrees for maximum range
-  const launchAngle = Math.atan2(dy + physicsConfig.minArcHeight, horizontalDistance);
+  const discriminant = Math.sqrt(2 * arcHeight / g);
+  const timeToTarget = Math.sqrt(2 * (arcHeight - dy) / g) + discriminant;
   
-  // Calculate velocity components
-  const totalTime = horizontalDistance / (v * Math.cos(launchAngle));
-  const vx = dx / totalTime;
-  const vz = dz / totalTime;
-  const vy = (dy - 0.5 * physicsConfig.gravity * totalTime * totalTime) / totalTime;
+
+  const vx = dx / timeToTarget;
+  const vz = dz / timeToTarget;
+  const vy = Math.sqrt(2 * g * arcHeight);
+  
+
+  const powerMultiplier = shotVelocity / 15; 
   
   return {
-    velocity: { x: vx, y: vy, z: vz },
-    angle: launchAngle,
-    time: totalTime,
+    velocity: { 
+      x: vx * powerMultiplier, 
+      y: vy * powerMultiplier, 
+      z: vz * powerMultiplier 
+    },
+    angle: Math.atan2(vy, Math.sqrt(vx * vx + vz * vz)),
+    time: timeToTarget,
     distance: horizontalDistance
   };
 }
 
-// Get shot velocity based on current power
+
 function getShotVelocity() {
   const powerRatio = shotPowerState.current / 100;
-  const minVelocity = 8;  // Minimum shot velocity
-  const maxVelocity = 25; // Maximum shot velocity
+  
+
+  const ballPos = basketball.position;
+  
+ 
+  const distanceFromCenter = Math.sqrt(ballPos.x * ballPos.x + ballPos.z * ballPos.z);
+  
+  if (distanceFromCenter <= 2 && Math.abs(shotPowerState.current - 50) <= 5) {
+
+    return 12; 
+  }
+  
+ 
+  const minVelocity = 6;   
+  const maxVelocity = 20;  
   
   return minVelocity + (maxVelocity - minVelocity) * powerRatio;
 }
 
-// Shoot the basketball
+
+function shouldEndShotAttempt() {
+
+  
+  const maxFlightTime = 8; 
+  const isOnGround = ballPhysics.position.y <= physicsConfig.courtHeight + physicsConfig.ballRadius + 0.1;
+  const isMovingSlowly = Math.sqrt(
+    ballPhysics.velocity.x * ballPhysics.velocity.x +
+    ballPhysics.velocity.y * ballPhysics.velocity.y +
+    ballPhysics.velocity.z * ballPhysics.velocity.z
+  ) < 1;
+  
+  return (ballPhysics.timeInFlight > maxFlightTime) ||
+         (isOnGround && isMovingSlowly && ballPhysics.bounceCount > 0);
+}
+
 function shootBasketball() {
   if (ballPhysics.isFlying || !basketball) return;
   
-  // Record shot attempt
   recordShotAttempt();
   
-  // Get current shot velocity based on power
   const shotVelocity = getShotVelocity();
   
-  // Find nearest hoop
   const { hoop: targetHoop, distance } = findNearestHoop();
   
-  // Calculate trajectory
   const trajectory = calculateTrajectory(targetHoop, shotVelocity);
   
-  // Set physics state
   ballPhysics.isFlying = true;
   ballPhysics.velocity = trajectory.velocity;
   ballPhysics.position = {
@@ -695,92 +761,64 @@ function shootBasketball() {
     z: basketball.position.z
   };
   ballPhysics.timeInFlight = 0;
-  ballPhysics.bounceCount = 0;  // Reset bounce counter
-  ballPhysics.lastCollision = null;  // Reset collision tracker
+  ballPhysics.bounceCount = 0;  
+  ballPhysics.lastCollision = null;  
   
-  // Reset scoring state for new shot
   ballPhysics.scoreRecorded = false;
   ballPhysics.missRecorded = false;
   ballPhysics.rimHit = false;
   
-  // Store resting position for potential reset
   ballPhysics.restingPosition = {
     x: basketball.position.x,
     y: movementConfig.courtSurfaceHeight + movementConfig.ballRadius,
     z: basketball.position.z
   };
   
-  // Show shooting feedback
-  console.log(`🏀 Shot #${scoringSystem.shotAttempts} fired with ${shotPowerState.displayValue}% power toward ${targetHoop.side} hoop!`);
+
+  console.log(`Shot #${scoringSystem.shotAttempts} fired with ${shotPowerState.displayValue}% power toward ${targetHoop.side} hoop!`);
   console.log(`Distance: ${distance.toFixed(2)} units, Velocity: ${shotVelocity.toFixed(2)}`);
 }
 
-// Update basketball physics when in flight
+
 function updateBasketballPhysics() {
   if (!ballPhysics.isFlying || !basketball) return;
-  
-  // Update time in flight
   ballPhysics.timeInFlight += physicsConfig.timeScale;
-  
-  // Apply gravity to vertical velocity
   ballPhysics.velocity.y += physicsConfig.gravity * physicsConfig.timeScale;
   
-  // Update position based on velocity
   ballPhysics.position.x += ballPhysics.velocity.x * physicsConfig.timeScale;
   ballPhysics.position.y += ballPhysics.velocity.y * physicsConfig.timeScale;
   ballPhysics.position.z += ballPhysics.velocity.z * physicsConfig.timeScale;
   
-  // Check for rim collisions first (scoring takes priority)
   checkRimCollisions();
   
-  // Check for wall collisions
   checkWallCollisions();
   
-  // Check for ground collision (this might stop the ball)
   const ballStopped = checkGroundCollision();
-  
-  // Check if ball has very low energy and should stop
-  const totalVelocity = Math.sqrt(
-    ballPhysics.velocity.x * ballPhysics.velocity.x +
-    ballPhysics.velocity.y * ballPhysics.velocity.y +
-    ballPhysics.velocity.z * ballPhysics.velocity.z
-  );
-  
-  if (totalVelocity < physicsConfig.minBounceVelocity && 
-      ballPhysics.position.y <= physicsConfig.courtHeight + physicsConfig.ballRadius + 0.01) {
-    // Ball has very low energy and is near the ground - stop it
+
+  if (shouldEndShotAttempt() && !ballPhysics.scoreRecorded && !ballPhysics.missRecorded) {
+    ballPhysics.missRecorded = true;
+    recordMissedShot();
     ballPhysics.isFlying = false;
     ballPhysics.velocity = { x: 0, y: 0, z: 0 };
     ballPhysics.position.y = physicsConfig.courtHeight + physicsConfig.ballRadius;
-    ballPhysics.bounceCount = 0;
-    console.log("Ball stopped due to low energy");
-    
-    // Check if we need to record a miss (ball stopped without scoring)
-    if (!ballPhysics.scoreRecorded && !ballPhysics.missRecorded) {
-      ballPhysics.missRecorded = true;
-      recordMissedShot();
-    }
+    console.log("Shot attempt ended - recorded as miss");
   }
   
-  // Emergency boundary check - reset if ball goes way out of bounds
   if (Math.abs(ballPhysics.position.x) > courtBoundaries.maxX + 5 ||
       Math.abs(ballPhysics.position.z) > courtBoundaries.maxZ + 5 ||
       ballPhysics.position.y < -2) {
-    // Ball went way out of bounds - reset
     ballPhysics.isFlying = false;
     ballPhysics.position = { ...ballPhysics.restingPosition };
     ballPhysics.velocity = { x: 0, y: 0, z: 0 };
     ballPhysics.bounceCount = 0;
     console.log("Ball reset due to going out of bounds");
     
-    // Record as miss if not already recorded
     if (!ballPhysics.scoreRecorded && !ballPhysics.missRecorded) {
       ballPhysics.missRecorded = true;
       recordMissedShot();
     }
   }
   
-  // Update basketball visual position
   basketball.position.set(
     ballPhysics.position.x,
     ballPhysics.position.y,
@@ -788,11 +826,9 @@ function updateBasketballPhysics() {
   );
 }
 
-// Update basketball movement based on input (only when not flying)
 function updateBasketballMovement() {
   if (!basketball || ballPhysics.isFlying) return;
   
-  // Calculate target velocity based on pressed keys
   movementState.targetVelocity.x = 0;
   movementState.targetVelocity.z = 0;
   
@@ -809,7 +845,6 @@ function updateBasketballMovement() {
     movementState.targetVelocity.z += movementConfig.speed;
   }
   
-  // Apply smoothing to current velocity
   movementState.velocity.x = 
     movementState.velocity.x * movementConfig.smoothing + 
     movementState.targetVelocity.x * (1 - movementConfig.smoothing);
@@ -818,32 +853,26 @@ function updateBasketballMovement() {
     movementState.velocity.z * movementConfig.smoothing + 
     movementState.targetVelocity.z * (1 - movementConfig.smoothing);
   
-  // Get current position
   const currentPos = basketball.position;
   
-  // Calculate new position
   let newX = currentPos.x + movementState.velocity.x;
   let newZ = currentPos.z + movementState.velocity.z;
   
-  // Apply boundary constraints
   newX = Math.max(courtBoundaries.minX, Math.min(courtBoundaries.maxX, newX));
   newZ = Math.max(courtBoundaries.minZ, Math.min(courtBoundaries.maxZ, newZ));
   
-  // Update basketball position
   basketball.position.set(
     newX,
     movementConfig.courtSurfaceHeight + movementConfig.ballRadius,
     newZ
   );
   
-  // Update physics position to match (when at rest)
   ballPhysics.position = {
     x: newX,
     y: movementConfig.courtSurfaceHeight + movementConfig.ballRadius,
     z: newZ
   };
   
-  // Stop velocity if we hit a boundary
   if (newX <= courtBoundaries.minX || newX >= courtBoundaries.maxX) {
     movementState.velocity.x = 0;
   }
@@ -852,9 +881,7 @@ function updateBasketballMovement() {
   }
 }
 
-// Update shot power based on input
 function updateShotPower() {
-  // Adjust target power based on key presses
   if (movementState.keys.powerUp) {
     shotPowerState.target = Math.min(
       shotPowerConfig.max, 
@@ -868,32 +895,24 @@ function updateShotPower() {
     );
   }
   
-  // Apply smoothing to current power
   shotPowerState.current = 
     shotPowerState.current * shotPowerConfig.smoothing + 
     shotPowerState.target * (1 - shotPowerConfig.smoothing);
   
-  // Update display value (rounded for UI)
   shotPowerState.displayValue = Math.round(shotPowerState.current);
   
-  // Sync with UI
   gameStats.shotPower = shotPowerState.displayValue;
   
-  // Update UI elements
   updatePowerIndicatorUI();
 }
 
-// Update power indicator UI elements (legacy function for compatibility)
 function updatePowerIndicatorUI() {
-  // This function now delegates to the new UI system
   updatePowerDisplay();
 }
 
-// Reset basketball to center court
 function resetBasketball() {
   if (!basketball) return;
   
-  // Stop any physics
   ballPhysics.isFlying = false;
   ballPhysics.velocity = { x: 0, y: 0, z: 0 };
   ballPhysics.bounceCount = 0;
@@ -901,7 +920,6 @@ function resetBasketball() {
   ballPhysics.missRecorded = false;
   ballPhysics.rimHit = false;
   
-  // Reset position to center court
   const centerPos = {
     x: 0,
     y: movementConfig.courtSurfaceHeight + movementConfig.ballRadius,
@@ -911,44 +929,36 @@ function resetBasketball() {
   basketball.position.set(centerPos.x, centerPos.y, centerPos.z);
   ballPhysics.position = { ...centerPos };
   
-  // Reset movement velocity
   movementState.velocity = { x: 0, z: 0 };
   movementState.targetVelocity = { x: 0, z: 0 };
   
-  // Reset rotation
   ballRotation.rotation = { x: 0, y: 0, z: 0 };
   ballRotation.angularVelocity = { x: 0, y: 0, z: 0 };
   
-  // UI feedback
   onBallResetUI();
   
   console.log("Basketball reset to center court");
 }
 
-// Enhanced keyboard handling with UI feedback
 function handleKeyDown(e) {
-  // Existing orbit camera toggle
   if (e.key === "o" || e.key === "O") {
     isOrbitEnabled = !isOrbitEnabled;
     updateGameStatus("Camera toggled!");
     return;
   }
   
-  // Reset ball
   if (e.key === "r" || e.key === "R") {
     e.preventDefault();
     resetBasketball();
     return;
   }
   
-  // Shooting control
   if (e.code === 'Space') {
     e.preventDefault();
     shootBasketball();
     return;
   }
   
-  // Movement controls (only when ball is not flying)
   if (!ballPhysics.isFlying) {
     switch(e.code) {
       case 'ArrowLeft':
@@ -974,7 +984,6 @@ function handleKeyDown(e) {
     }
   }
   
-  // Shot power controls (always available)
   switch(e.code) {
     case 'KeyW':
       e.preventDefault();
@@ -1007,7 +1016,6 @@ function handleKeyUp(e) {
       e.preventDefault();
       movementState.keys.down = false;
       break;
-    // Shot power controls
     case 'KeyW':
       e.preventDefault();
       movementState.keys.powerUp = false;
@@ -1019,58 +1027,45 @@ function handleKeyUp(e) {
   }
 }
 
-// Create all elements
 createBasketballCourt();
 
-// Set camera position for better view
 const cameraTranslate = new THREE.Matrix4();
 cameraTranslate.makeTranslation(0, 15, 30);
 camera.applyMatrix4(cameraTranslate);
 
-// Orbit controls
 const controls = new OrbitControls(camera, renderer.domElement);
 let isOrbitEnabled = true;
 
-// Initialize UI after DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
   initializeUI();
 });
 
-// Initialize UI immediately if DOM is already loaded
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeUI);
 } else {
   initializeUI();
 }
 
-// Event listeners
 document.addEventListener('keydown', handleKeyDown);
 document.addEventListener('keyup', handleKeyUp);
 
-// Handle window resize
 window.addEventListener('resize', function() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Animation function
 function animate() {
   requestAnimationFrame(animate);
   
-  // Update basketball physics (flight simulation)
   updateBasketballPhysics();
   
-  // Update basketball movement (ground movement)
   updateBasketballMovement();
   
-  // Update basketball rotation (both flight and ground)
   updateBallRotation();
   
-  // Update shot power system
   updateShotPower();
   
-  // Update controls
   controls.enabled = isOrbitEnabled;
   controls.update();
   
